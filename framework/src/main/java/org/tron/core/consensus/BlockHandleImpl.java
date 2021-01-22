@@ -42,6 +42,7 @@ public class BlockHandleImpl implements BlockHandle {
     return manager;
   }
 
+  //产块
   public BlockCapsule produce(Miner miner, long blockTime, long timeout) {
     BlockCapsule blockCapsule = manager.generateBlock(miner, blockTime, timeout);
     if (blockCapsule == null) {

@@ -783,19 +783,23 @@ public class Manager {
         block.getTransactions().size());
   }
 
+  //确认块
   private void applyBlock(BlockCapsule block) throws ContractValidateException,
       ContractExeException, ValidateSignatureException, AccountResourceInsufficientException,
       TransactionExpirationException, TooBigTransactionException, DupTransactionException,
       TaposException, ValidateScheduleException, ReceiptCheckErrException,
       VMIllegalException, TooBigTransactionResultException, ZksnarkException, BadBlockException {
+
     processBlock(block);
+    //处理成功，将区块持久化到 blockStore
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
     chainBaseManager.getBlockIndexStore().put(block.getBlockId());
     if (block.getTransactions().size() != 0) {
+      //根据区块id，将区块下的所有交易都存储
       chainBaseManager.getTransactionRetStore()
           .put(ByteArray.fromLong(block.getNum()), block.getResult());
     }
-
+    // 更新分叉
     updateFork(block);
     if (System.currentTimeMillis() - block.getTimeStamp() >= 60_000) {
       revokingStore.setMaxFlushCount(SnapshotManager.DEFAULT_MAX_FLUSH_COUNT);
@@ -949,6 +953,7 @@ public class Manager {
 
       BlockCapsule newBlock;
       try {
+        //接收到的块，先存到 khaos 中
         newBlock = this.khaosDb.push(block);
       } catch (UnLinkedBlockException e) {
         logger.error(
@@ -960,11 +965,13 @@ public class Manager {
       }
 
       // DB don't need lower block
+      // 校验块 hash
       if (getDynamicPropertiesStore().getLatestBlockHeaderHash() == null) {
         if (newBlock.getNum() != 0) {
           return;
         }
       } else {
+        // 校验块的高度
         if (newBlock.getNum() <= getDynamicPropertiesStore().getLatestBlockHeaderNumber()) {
           return;
         }
@@ -995,7 +1002,7 @@ public class Manager {
                   + khaosDb.getMiniStore().size()
                   + ", khaosDb unlinkMiniStore size: "
                   + khaosDb.getMiniUnlinkedStore().size());
-
+          //选择分叉
           switchFork(newBlock);
           logger.info(SAVE_BLOCK + newBlock);
 
@@ -1202,7 +1209,7 @@ public class Manager {
         chainBaseManager.getHeadBlockId(),
         blockTime, miner.getWitnessAddress());
     blockCapsule.generatedByMyself = true;
-    //回退操作
+    //第一次，回退操作，下面还有一次
     session.reset();
     session.setValue(revokingStore.buildSession());
 
@@ -1222,6 +1229,8 @@ public class Manager {
 
     Set<String> accountSet = new HashSet<>();
     AtomicInteger shieldedTransCounts = new AtomicInteger(0);
+    //从 push_transaction 中处理好的交易，放在 pendingTransactions 中
+    //产块时，从 pendingTransactions 取出
     Iterator<TransactionCapsule> iterator = pendingTransactions.iterator();
     while (iterator.hasNext() || rePushTransactions.size() > 0) {
       boolean fromPending = false;
@@ -1282,7 +1291,7 @@ public class Manager {
     }
 
     accountStateCallBack.executeGenerateFinish();
-
+    //第二次回退
     session.reset();
 
     logger.info("Generate block success, pendingCount: {}, rePushCount: {}, postponedCount: {}",
@@ -1344,6 +1353,7 @@ public class Manager {
 
   /**
    * process block.
+   * 处理区块
    */
   public void processBlock(BlockCapsule block)
       throws ValidateSignatureException, ContractValidateException, ContractExeException,
