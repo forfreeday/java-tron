@@ -77,6 +77,7 @@ public class DposTask {
     logger.info("DPoS task stopped.");
   }
 
+  //产块任务
   private State produceBlock() {
 
     State state = stateManager.getState();
@@ -85,14 +86,14 @@ public class DposTask {
     }
 
     synchronized (dposService.getBlockHandle().getLock()) {
-
+      //检测是否到了一个 slot 时间
       long slot = dposSlot.getSlot(System.currentTimeMillis() + 50);
       if (slot == 0) {
         return State.NOT_TIME_YET;
       }
-
+      //拿到在线的 SR 地址，实际作用是：判断是否轮到自己产块，27个 SR 每3秒产一个块，当前判断是否为自己的那3秒
       ByteString pWitness = dposSlot.getScheduledWitness(slot);
-
+      //私钥信息
       Miner miner = dposService.getMiners().get(pWitness);
       if (miner == null) {
         return State.NOT_MY_TURN;
@@ -101,6 +102,8 @@ public class DposTask {
       long pTime = dposSlot.getTime(slot);
       long timeout =
           pTime + BLOCK_PRODUCED_INTERVAL / 2 * dposService.getBlockProduceTimeoutPercent() / 100;
+
+      //产块
       BlockCapsule blockCapsule = dposService.getBlockHandle().produce(miner, pTime, timeout);
       if (blockCapsule == null) {
         return State.PRODUCE_BLOCK_FAILED;

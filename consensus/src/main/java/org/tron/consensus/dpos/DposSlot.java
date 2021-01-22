@@ -49,6 +49,9 @@ public class DposSlot {
     return time + interval * slot;
   }
 
+  //通过判断当前时间，是否为自己该产块的时间
+  //去中心化的服务，不是通过消息通息的方式去通知其他节点产块，而是各自为政，在 27 个节点中，进行产块时间排序
+  //轮到自己的产块时间，就进行产块！！
   public ByteString getScheduledWitness(long slot) {
     final long currentSlot = getAbSlot(consensusDelegate.getLatestBlockHeaderTimestamp()) + slot;
     if (currentSlot < 0) {

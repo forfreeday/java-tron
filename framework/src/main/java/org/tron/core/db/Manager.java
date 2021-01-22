@@ -674,6 +674,7 @@ public class Manager {
       return true;
     }
 
+    //交易添加到 交易队列
     pushTransactionQueue.add(trx);
 
     try {
@@ -688,12 +689,16 @@ public class Manager {
           return false;
         }
         if (!session.valid()) {
+          //构建一个 session 对象，用来执行回滚操作
           session.setValue(revokingStore.buildSession());
         }
 
         try (ISession tmpSession = revokingStore.buildSession()) {
+          //执行交易
           processTransaction(trx, null);
+          //执行成功，添加到 pending 队列
           pendingTransactions.add(trx);
+          //判断是否需要固化，这个操作本身和交易无关，而是另一个线程会接收区块
           tmpSession.merge();
         }
         if (isShieldedTransaction(trx.getInstance())) {
@@ -1197,6 +1202,7 @@ public class Manager {
         chainBaseManager.getHeadBlockId(),
         blockTime, miner.getWitnessAddress());
     blockCapsule.generatedByMyself = true;
+    //回退操作
     session.reset();
     session.setValue(revokingStore.buildSession());
 

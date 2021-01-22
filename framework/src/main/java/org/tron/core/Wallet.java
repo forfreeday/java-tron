@@ -515,7 +515,9 @@ public class Wallet {
       if (chainBaseManager.getDynamicPropertiesStore().supportVM()) {
         trx.resetResult();
       }
+      //接收交易
       dbManager.pushTransaction(trx);
+      //广播交易
       tronNetService.broadcast(message);
       logger.info("Broadcast transaction {} successfully.", trx.getTransactionId());
       return builder.setResult(true).setCode(response_code.SUCCESS).build();

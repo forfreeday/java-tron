@@ -35,7 +35,7 @@ public class StateManager {
 
   private long blockCycle = BLOCK_PRODUCED_INTERVAL * MAX_ACTIVE_WITNESS_NUM;
 
-
+  //获取状态
   public State getState() {
 
     if (System.currentTimeMillis() < consensusDelegate.getLatestBlockHeaderTimestamp()) {

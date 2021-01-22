@@ -79,6 +79,7 @@ public class SnapshotManager implements RevokingDatabase {
     return buildSession(false);
   }
 
+  //每创建一个 buildSession， activeSession +1，merge 后 activeSession -1
   public synchronized ISession buildSession(boolean forceEnable) {
     if (disabled && !forceEnable) {
       return new Session(this);
@@ -88,7 +89,7 @@ public class SnapshotManager implements RevokingDatabase {
     if (forceEnable) {
       disabled = false;
     }
-
+    //判断是否需要将快照持久化，maxSize 是 DEFAULT_STACK_MAX_SIZE，默认 256
     if (size > maxSize.get()) {
       flushCount = flushCount + (size - maxSize.get());
       updateSolidity(size - maxSize.get());
