@@ -1457,6 +1457,7 @@ public class VM {
       }
 
       while (!program.isStopped()) {
+        //进入这里执行
         this.step(program);
       }
 

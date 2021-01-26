@@ -156,6 +156,7 @@ public class VMActuator implements Actuator2 {
 
     ProgramResult result = context.getProgramResult();
     try {
+      //调用 VM 执行
       if (vm != null) {
         if (null != blockCap && blockCap.generatedByMyself && blockCap.hasWitnessSignature()
             && null != TransactionUtil.getContractRet(trx)
@@ -169,6 +170,7 @@ public class VMActuator implements Actuator2 {
           throw e;
         }
 
+        //执行程序
         vm.play(program);
         result = program.getResult();
 

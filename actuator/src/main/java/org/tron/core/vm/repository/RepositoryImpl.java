@@ -53,6 +53,7 @@ import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.AccountType;
 
 @Slf4j(topic = "Repository")
+//对存储层的抽象
 public class RepositoryImpl implements Repository {
 
   //for energycal

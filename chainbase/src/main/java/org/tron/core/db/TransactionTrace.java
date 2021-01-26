@@ -134,6 +134,7 @@ public class TransactionTrace {
     }
     TriggerSmartContract triggerContractFromTransaction = ContractCapsule
         .getTriggerContractFromTransaction(this.getTrx().getInstance());
+    //触发智能合约
     if (TRX_CONTRACT_CALL_TYPE == this.trxType) {
       ContractCapsule contract = contractStore
           .get(triggerContractFromTransaction.getContractAddress().toByteArray());
@@ -214,6 +215,7 @@ public class TransactionTrace {
 
   /**
    * pay actually bill(include ENERGY and storage).
+   * 实际支付
    */
   public void pay() throws BalanceInsufficientException {
     byte[] originAccount;
@@ -262,6 +264,7 @@ public class TransactionTrace {
         == contractResult.OUT_OF_TIME;
   }
 
+  //这个 check 不过，就不接收块了
   public void check() throws ReceiptCheckErrException {
     if (!needVM()) {
       return;
@@ -269,6 +272,7 @@ public class TransactionTrace {
     if (Objects.isNull(trx.getContractRet())) {
       throw new ReceiptCheckErrException("null resultCode");
     }
+    // vm 执行的结果在这里校验
     if (!trx.getContractRet().equals(receipt.getResult())) {
       logger.info(
           "this tx id: {}, the resultCode in received block: {}, the resultCode in self: {}",

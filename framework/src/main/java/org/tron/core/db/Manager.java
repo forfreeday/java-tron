@@ -1143,12 +1143,14 @@ public class Manager {
     TransactionTrace trace = new TransactionTrace(trxCap, StoreFactory.getInstance(),
         new RuntimeImpl());
     trxCap.setTrxTrace(trace);
-
+    //消耗代宽
     consumeBandwidth(trxCap, trace);
+    //多重签名费
     consumeMultiSignFee(trxCap, trace);
 
     trace.init(blockCap, eventPluginLoaded);
     trace.checkIsConstant();
+    //vm 执行交易
     trace.exec();
 
     if (Objects.nonNull(blockCap)) {

@@ -36,6 +36,7 @@ public class RuntimeImpl implements Runtime {
   @Getter
   private Actuator2 actuator2 = null;
 
+  //执行交易
   @Override
   public void execute(TransactionContext context)
       throws ContractValidateException, ContractExeException {

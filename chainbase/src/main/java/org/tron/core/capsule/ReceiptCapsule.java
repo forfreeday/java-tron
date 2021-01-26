@@ -140,6 +140,7 @@ public class ReceiptCapsule {
       long callerUsage = receipt.getEnergyUsageTotal() - originUsage;
       energyProcessor.useEnergy(origin, originUsage, now);
       this.setOriginEnergyUsage(originUsage);
+      //支付能量费用
       payEnergyBill(dynamicPropertiesStore, accountStore, forkController,
           caller, callerUsage, receipt.getResult(), energyProcessor, now);
     }
@@ -192,6 +193,7 @@ public class ReceiptCapsule {
         throw new BalanceInsufficientException(
             StringUtil.createReadableString(account.createDbKey()) + " insufficient balance");
       }
+      //扣除能量消耗的费用
       account.setBalance(balance - energyFee);
 
       if (dynamicPropertiesStore.supportTransactionFeePool() &&
