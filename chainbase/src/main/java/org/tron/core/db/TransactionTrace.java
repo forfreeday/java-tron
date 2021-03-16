@@ -52,6 +52,8 @@ public class TransactionTrace {
 
   private AccountStore accountStore;
 
+  private AccountAssetIssueStore accountAssetIssueStore;
+
   private CodeStore codeStore;
 
   private EnergyProcessor energyProcessor;
@@ -97,6 +99,7 @@ public class TransactionTrace {
     this.contractStore = storeFactory.getChainBaseManager().getContractStore();
     this.codeStore = storeFactory.getChainBaseManager().getCodeStore();
     this.accountStore = storeFactory.getChainBaseManager().getAccountStore();
+    this.accountAssetIssueStore = storeFactory.getChainBaseManager().getAccountAssetIssueStore();
 
     this.receipt = new ReceiptCapsule(Sha256Hash.ZERO_HASH);
     this.energyProcessor = new EnergyProcessor(dynamicPropertiesStore, accountStore);
@@ -182,16 +185,16 @@ public class TransactionTrace {
     runtime.execute(transactionContext);
     setBill(transactionContext.getProgramResult().getEnergyUsed());
 
-    if (TrxType.TRX_PRECOMPILED_TYPE != trxType) {
-      if (contractResult.OUT_OF_TIME
-          .equals(receipt.getResult())) {
-        setTimeResultType(TimeResultType.OUT_OF_TIME);
-      } else if (System.currentTimeMillis() - txStartTimeInMs
-          > CommonParameter.getInstance()
-          .getLongRunningTime()) {
-        setTimeResultType(TimeResultType.LONG_RUNNING);
-      }
-    }
+//    if (TrxType.TRX_PRECOMPILED_TYPE != trxType) {
+//      if (contractResult.OUT_OF_TIME
+//          .equals(receipt.getResult())) {
+//        setTimeResultType(TimeResultType.OUT_OF_TIME);
+//      } else if (System.currentTimeMillis() - txStartTimeInMs
+//          > CommonParameter.getInstance()
+//          .getLongRunningTime()) {
+//        setTimeResultType(TimeResultType.LONG_RUNNING);
+//      }
+//    }
   }
 
   public void finalization() throws ContractExeException {
@@ -309,6 +312,7 @@ public class TransactionTrace {
     codeStore.delete(address);
     accountStore.delete(address);
     contractStore.delete(address);
+    accountAssetIssueStore.delete(address);
   }
 
   public static byte[] convertToTronAddress(byte[] address) {

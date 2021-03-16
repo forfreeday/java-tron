@@ -61,6 +61,7 @@ import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.NetConstants;
 import org.tron.core.config.Parameter.NodeConstant;
 import org.tron.core.exception.CipherException;
+import org.tron.core.store.AccountAssetIssueStore;
 import org.tron.core.store.AccountStore;
 import org.tron.keystore.Credentials;
 import org.tron.keystore.WalletUtils;
@@ -185,6 +186,8 @@ public class Args extends CommonParameter {
     PARAMETER.allowTvmStake = 0;
     PARAMETER.allowTvmAssetIssue = 0;
     PARAMETER.historyBalanceLookup = false;
+    PARAMETER.openPrintLog = true;
+    PARAMETER.openTransactionSort = false;
   }
 
   /**
@@ -357,6 +360,7 @@ public class Args extends CommonParameter {
       if (config.hasPath(Constant.GENESIS_BLOCK_ASSETS)) {
         PARAMETER.genesisBlock.setAssets(getAccountsFromConfig(config));
         AccountStore.setAccount(config);
+        AccountAssetIssueStore.setAccountAssetIssue(config);
       }
       if (config.hasPath(Constant.GENESIS_BLOCK_WITNESSES)) {
         PARAMETER.genesisBlock.setWitnesses(getWitnessesFromConfig(config));
@@ -743,6 +747,11 @@ public class Args extends CommonParameter {
 
     PARAMETER.historyBalanceLookup = config.hasPath(Constant.HISTORY_BALANCE_LOOKUP) && config
         .getBoolean(Constant.HISTORY_BALANCE_LOOKUP);
+
+    PARAMETER.openPrintLog = config.hasPath(Constant.OPEN_PRINT_LOG) ? config
+        .getBoolean(Constant.OPEN_PRINT_LOG) : true;
+    PARAMETER.openTransactionSort = config.hasPath(Constant.OPEN_TRANSACTION_SORT) ? config
+        .getBoolean(Constant.OPEN_TRANSACTION_SORT) : false;
 
     logConfig();
   }
