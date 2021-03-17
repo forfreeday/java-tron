@@ -51,9 +51,11 @@ public class RuntimeImpl implements Runtime {
         if (!actuatorSet.isEmpty() && !actuatorSet.contains(VMActuator.class.getSimpleName())) {
           throw new ContractValidateException("not exist contract " + "SmartContract");
         }
+        // vm 执行
         actuator2 = new VMActuator(context.isStatic());
         break;
       default:
+        // 普通执行 trx、10币执行
         actuatorList = ActuatorCreator.getINSTANCE().createActuator(context.getTrxCap());
     }
     if (actuator2 != null) {

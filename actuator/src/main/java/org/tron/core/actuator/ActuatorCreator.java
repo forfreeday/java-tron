@@ -57,6 +57,7 @@ public class ActuatorCreator {
     return actuatorList;
   }
 
+  //构建交易需要用到了 Actuator，应该理解成交易类型
   private Actuator getActuatorByContract(Contract contract,
       TransactionCapsule tx)
       throws IllegalAccessException, InstantiationException, ContractValidateException {
