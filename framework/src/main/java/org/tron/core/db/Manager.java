@@ -698,7 +698,7 @@ public class Manager {
       return true;
     }
 
-    //交易添加到 交易队列
+    //交易添加到 接收队列
     pushTransactionQueue.add(trx);
 
     try {
@@ -1190,6 +1190,7 @@ public class Manager {
           logger.info("Retry result for tx id: {}, tx resultCode in receipt: {}",
               txId, trace.getReceipt().getResult());
         }
+        //执行结果在这里校验
         trace.check();
       }
     }
@@ -1198,6 +1199,7 @@ public class Manager {
     if (Objects.nonNull(blockCap) && getDynamicPropertiesStore().supportVM()) {
       trxCap.setResult(trace.getTransactionContext());
     }
+    //更新交易结果到存储
     chainBaseManager.getTransactionStore().put(trxCap.getTransactionId().getBytes(), trxCap);
 
     Optional.ofNullable(transactionCache)

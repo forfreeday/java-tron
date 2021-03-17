@@ -137,7 +137,6 @@ public class TransactionTrace {
     }
     TriggerSmartContract triggerContractFromTransaction = ContractCapsule
         .getTriggerContractFromTransaction(this.getTrx().getInstance());
-    //触发智能合约
     if (TRX_CONTRACT_CALL_TYPE == this.trxType) {
       ContractCapsule contract = contractStore
           .get(triggerContractFromTransaction.getContractAddress().toByteArray());
@@ -267,7 +266,7 @@ public class TransactionTrace {
         == contractResult.OUT_OF_TIME;
   }
 
-  //这个 check 不过，就不接收块了
+  //这个 check 不过，就不接收块了，在测试接收同步区块的时候，这里异常就会不接收
   public void check() throws ReceiptCheckErrException {
     if (!needVM()) {
       return;

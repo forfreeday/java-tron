@@ -19,6 +19,7 @@ public class TransactionFactory {
     register(ContractType.TriggerSmartContract, null, TriggerSmartContract.class);
   }
 
+  //根据不同交易类型进行注册 Actuator
   public static void register(ContractType type, Class<? extends Actuator> actuatorClass,
       Class<? extends GeneratedMessageV3> clazz) {
     Set<String> actuatorSet = CommonParameter.getInstance().getActuatorSet();
