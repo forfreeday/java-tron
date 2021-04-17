@@ -229,7 +229,10 @@ public class Manager {
           TransactionCapsule tx = null;
           try {
             tx = getRePushTransactions().peek();
-            if (tx != null) {
+            if (tx != null && System.currentTimeMillis() - tx.getTime() >= Args.getInstance()
+                .getPendingTransactionTimeout()) {
+              logger.warn("[timeout] remove tx from rePush, txId:{}", tx.getTransactionId());
+            } else if (tx != null) {
               this.rePush(tx);
             } else {
               TimeUnit.MILLISECONDS.sleep(SLEEP_TIME_OUT);
@@ -344,7 +347,7 @@ public class Manager {
     isRunTriggerCapsuleProcessThread = false;
   }
 
-  Comparator downComparator = (Comparator<TransactionCapsule>) (o1, o2) -> Long
+  private Comparator downComparator = (Comparator<TransactionCapsule>) (o1, o2) -> Long
       .compare(o2.getOrder(), o1.getOrder());
 
   @PostConstruct
@@ -366,7 +369,7 @@ public class Manager {
       this.rePushTransactions = new PriorityBlockingQueue<>(2000, downComparator);
     } else {
       this.pendingTransactions = new LinkedBlockingQueue<>();
-      this.rePushTransactions =new LinkedBlockingQueue<>();
+      this.rePushTransactions = new LinkedBlockingQueue<>();
     }
     this.triggerCapsuleQueue = new LinkedBlockingQueue<>();
     chainBaseManager.setMerkleContainer(getMerkleContainer());
@@ -1855,13 +1858,13 @@ public class Manager {
     return transactionCapsule.get();
   }
 
-  public Collection<Transaction> getTxListFromPending() {
-    Set<Transaction> result = new HashSet<>();
+  public Collection<String> getTxListFromPending() {
+    Set<String> result = new HashSet<>();
     pendingTransactions.forEach(tx -> {
-      result.add(tx.getInstance());
+      result.add(tx.getTransactionId().toString());
     });
     rePushTransactions.forEach(tx -> {
-      result.add(tx.getInstance());
+      result.add(tx.getTransactionId().toString());
     });
     return result;
   }
