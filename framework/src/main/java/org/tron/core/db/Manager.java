@@ -1243,7 +1243,7 @@ public class Manager {
     session.setValue(revokingStore.buildSession());
 
     accountStateCallBack.preExecute(blockCapsule);
-
+    //这个多签是什么应用场景
     if (getDynamicPropertiesStore().getAllowMultiSign() == 1) {
       byte[] privateKeyAddress = miner.getPrivateKeyAddress().toByteArray();
       AccountCapsule witnessAccount = getAccountStore()
@@ -1258,12 +1258,13 @@ public class Manager {
 
     Set<String> accountSet = new HashSet<>();
     AtomicInteger shieldedTransCounts = new AtomicInteger(0);
-    //从 push_transaction 中处理好的交易，放在 pendingTransactions 中
+    //从 pushTransaction 中处理好的交易，放在 pendingTransactions 中
     //产块时，从 pendingTransactions 取出
     while (pendingTransactions.size() > 0 || rePushTransactions.size() > 0) {
       boolean fromPending = false;
       TransactionCapsule trx;
       if (pendingTransactions.size() > 0) {
+        // 这里用的是 peek
         trx = pendingTransactions.peek();
         if (Args.getInstance().isOpenTransactionSort()) {
           TransactionCapsule trxRepush = rePushTransactions.peek();
@@ -1290,7 +1291,7 @@ public class Manager {
         postponedTrxCount++;
         continue;
       }
-      //shielded transaction
+      //shielded transaction 匿名交易
       if (isShieldedTransaction(trx.getInstance())
           && shieldedTransCounts.incrementAndGet() > SHIELDED_TRANS_IN_BLOCK_COUNTS) {
         continue;

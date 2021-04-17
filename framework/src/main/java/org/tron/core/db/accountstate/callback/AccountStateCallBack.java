@@ -58,6 +58,7 @@ public class AccountStateCallBack extends AccountStateCallBackUtils {
     }
     byte[] rootHash = null;
     try {
+      //从 khaos 中拿出当前的父块
       BlockCapsule parentBlockCapsule =
           chainBaseManager.getBlockById(blockCapsule.getParentBlockId());
       rootHash = parentBlockCapsule.getInstance().getBlockHeader().getRawData()
@@ -68,6 +69,7 @@ public class AccountStateCallBack extends AccountStateCallBackUtils {
     if (Arrays.equals(Internal.EMPTY_BYTE_ARRAY, rootHash)) {
       rootHash = Hash.EMPTY_TRIE_HASH;
     }
+    //设置为 字典树根
     trie = new TrieImpl(db, rootHash);
   }
 
