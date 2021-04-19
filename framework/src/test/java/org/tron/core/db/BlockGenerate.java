@@ -35,7 +35,7 @@ public class BlockGenerate {
     }
     Param param = Param.getInstance();
     Miner miner = param.new Miner(privateKey, witness, witness);
-    //产块
+    //产块了一个空块
     BlockCapsule blockCapsule = manager
         .generateBlock(miner, time, System.currentTimeMillis() + 1000);
     Block block = blockCapsule.getInstance();

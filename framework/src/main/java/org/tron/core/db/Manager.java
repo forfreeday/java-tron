@@ -723,7 +723,7 @@ public class Manager {
         try (ISession tmpSession = revokingStore.buildSession()) {
           //执行交易
           processTransaction(trx, null);
-          //执行成功，添加到 pending 队列
+          //执行成功，添加到 pending 队列，FullNode 是如何将交易移除的？？？
           pendingTransactions.add(trx);
           //判断是否需要固化，这个操作本身和交易无关，而是另一个线程会接收区块
           tmpSession.merge();
