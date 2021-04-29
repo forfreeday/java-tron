@@ -291,7 +291,7 @@ public class StressPrecondition {
       waitProposalApprove(approveProposalIndex, blockingStubFull);
     }
   }
-
+  //打钱操作
   @Test(enabled = true)
   public void test002SendCoinToStressAccount() {
     sendCoinToStressAccount(commonOwnerPrivateKey);
