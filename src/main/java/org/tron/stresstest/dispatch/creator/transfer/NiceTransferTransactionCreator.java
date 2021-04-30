@@ -22,10 +22,10 @@ import java.io.File;
 @Setter
 public class NiceTransferTransactionCreator extends AbstractTransferTransactionCreator implements GoodCaseTransactonCreator {
 
-  private String ownerAddress = "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW";
+  private String ownerAddress = commonOwnerAddress;
   private String toAddress = commonToAddress;
   private long amount = 1L;
-  private String privateKey = "D95611A9AF2A2A45359106222ED1AFED48853D9A44DEFF8DC7913F5CBA727366";
+  private String privateKey = commonOwnerPrivateKey;
 
 
   @Override
