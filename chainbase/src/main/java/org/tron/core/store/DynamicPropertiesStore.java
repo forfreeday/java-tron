@@ -153,9 +153,8 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
   private static final byte[] MAX_FEE_LIMIT = "MAX_FEE_LIMIT".getBytes();
   private static final byte[] BURN_TRX_AMOUNT = "BURN_TRX_AMOUNT".getBytes();
   private static final byte[] ALLOW_BLACKHOLE_OPTIMIZATION = "ALLOW_BLACKHOLE_OPTIMIZATION".getBytes();
-  //This value is only allowed to be 0, 1
-  private static final byte[] ALLOW_ASSET_IMPORT = "ALLOW_ASSET_IMPORT".getBytes();
-
+  private static final byte[] ALLOW_NEW_RESOURCE_MODEL = "ALLOW_NEW_RESOURCE_MODEL".getBytes();
+  private static final byte[] ALLOW_TVM_FREEZE = "ALLOW_TVM_FREEZE".getBytes();
 
   @Autowired
   private DynamicPropertiesStore(@Value("properties") String dbName) {
@@ -342,6 +341,13 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
     } catch (IllegalArgumentException e) {
       this.saveTotalEnergyWeight(0L);
     }
+
+    try {
+      this.getTotalTronPowerWeight();
+    } catch (IllegalArgumentException e) {
+      this.saveTotalTronPowerWeight(0L);
+    }
+
 
     try {
       this.getAllowAdaptiveEnergy();
@@ -733,9 +739,16 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
     }
 
     try {
-      this.getAllowAssetImport();
+      this.getAllowNewResourceModel();
     } catch (IllegalArgumentException e) {
-      this.setAllowAssetImport(0L);
+      this.saveAllowNewResourceModel(CommonParameter.getInstance().getAllowNewResourceModel());
+    }
+
+    try {
+      this.getAllowTvmFreeze();
+    } catch (IllegalArgumentException e) {
+      this.saveAllowTvmFreeze(
+          CommonParameter.getInstance().getAllowTvmFreeze());
     }
 
   }
@@ -1039,6 +1052,19 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
         .map(ByteArray::toLong)
         .orElseThrow(
             () -> new IllegalArgumentException("not found TOTAL_ENERGY_WEIGHT"));
+  }
+
+  public void saveTotalTronPowerWeight(long totalEnergyWeight) {
+    this.put(DynamicResourceProperties.TOTAL_TRON_POWER_WEIGHT,
+        new BytesCapsule(ByteArray.fromLong(totalEnergyWeight)));
+  }
+
+  public long getTotalTronPowerWeight() {
+    return Optional.ofNullable(getUnchecked(DynamicResourceProperties.TOTAL_TRON_POWER_WEIGHT))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElseThrow(
+            () -> new IllegalArgumentException("not found TOTAL_TRON_POWER_WEIGHT"));
   }
 
   public void saveTotalNetLimit(long totalNetLimit) {
@@ -2014,6 +2040,13 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
     saveTotalEnergyWeight(totalEnergyWeight);
   }
 
+  //The unit is trx
+  public void addTotalTronPowerWeight(long amount) {
+    long totalWeight = getTotalTronPowerWeight();
+    totalWeight += amount;
+    saveTotalTronPowerWeight(totalWeight);
+  }
+
   public void addTotalCreateAccountCost(long fee) {
     long newValue = getTotalCreateAccountCost() + fee;
     saveTotalCreateAccountFee(newValue);
@@ -2176,15 +2209,34 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
             () -> new IllegalArgumentException("not found ALLOW_BLACKHOLE_OPTIMIZATION"));
   }
 
-  public long getAllowAssetImport() {
-    return Optional.ofNullable(getUnchecked(ALLOW_ASSET_IMPORT))
-            .map(BytesCapsule::getData)
-            .map(ByteArray::toLong)
-            .orElseThrow(() -> new IllegalArgumentException("not found ALLOW_ASSET_IMPORT"));
+  public boolean supportAllowNewResourceModel() {
+    return getAllowNewResourceModel() == 1L;
   }
 
-  public void setAllowAssetImport(long importFlag) {
-    this.put(ALLOW_ASSET_IMPORT, new BytesCapsule(ByteArray.fromLong(importFlag)));
+  public void saveAllowNewResourceModel(long value) {
+    this.put(ALLOW_NEW_RESOURCE_MODEL, new BytesCapsule(ByteArray.fromLong(value)));
+  }
+
+  public long getAllowNewResourceModel() {
+    return Optional.ofNullable(getUnchecked(ALLOW_NEW_RESOURCE_MODEL))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElseThrow(
+            () -> new IllegalArgumentException("not found ALLOW_NEW_RESOURCE_MODEL"));
+  }
+
+  public void saveAllowTvmFreeze(long allowTvmFreeze) {
+    this.put(DynamicPropertiesStore.ALLOW_TVM_FREEZE,
+        new BytesCapsule(ByteArray.fromLong(allowTvmFreeze)));
+  }
+
+  public long getAllowTvmFreeze() {
+    String msg = "not found ALLOW_TVM_FREEZE";
+    return Optional.ofNullable(getUnchecked(ALLOW_TVM_FREEZE))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElseThrow(
+            () -> new IllegalArgumentException(msg));
   }
 
   private static class DynamicResourceProperties {
@@ -2206,6 +2258,7 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
         .getBytes();
     private static final byte[] TOTAL_ENERGY_AVERAGE_TIME = "TOTAL_ENERGY_AVERAGE_TIME".getBytes();
     private static final byte[] TOTAL_ENERGY_WEIGHT = "TOTAL_ENERGY_WEIGHT".getBytes();
+    private static final byte[] TOTAL_TRON_POWER_WEIGHT = "TOTAL_TRON_POWER_WEIGHT".getBytes();
     private static final byte[] TOTAL_ENERGY_LIMIT = "TOTAL_ENERGY_LIMIT".getBytes();
     private static final byte[] BLOCK_ENERGY_USAGE = "BLOCK_ENERGY_USAGE".getBytes();
     private static final byte[] ADAPTIVE_RESOURCE_LIMIT_MULTIPLIER =

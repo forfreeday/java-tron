@@ -360,6 +360,12 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
         .build();
   }
 
+  public void safeAddAcquiredDelegatedFrozenBalanceForBandwidth(long balance) {
+    this.account = this.account.toBuilder().setAcquiredDelegatedFrozenBalanceForBandwidth(
+        Math.max(0, this.account.getAcquiredDelegatedFrozenBalanceForBandwidth() + balance))
+        .build();
+  }
+
   public long getAcquiredDelegatedFrozenBalanceForEnergy() {
     return getAccountResource().getAcquiredDelegatedFrozenBalanceForEnergy();
   }
@@ -387,10 +393,30 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
         .build();
   }
 
+  public void setDelegatedFrozenBalanceForEnergy(long balance){
+    AccountResource newAccountResource = getAccountResource().toBuilder()
+        .setDelegatedFrozenBalanceForEnergy(balance).build();
+
+    this.account = this.account.toBuilder()
+        .setAccountResource(newAccountResource)
+        .build();
+  }
+
   public void addAcquiredDelegatedFrozenBalanceForEnergy(long balance) {
     AccountResource newAccountResource = getAccountResource().toBuilder()
         .setAcquiredDelegatedFrozenBalanceForEnergy(
             getAccountResource().getAcquiredDelegatedFrozenBalanceForEnergy() + balance).build();
+
+    this.account = this.account.toBuilder()
+        .setAccountResource(newAccountResource)
+        .build();
+  }
+
+  public void safeAddAcquiredDelegatedFrozenBalanceForEnergy(long balance) {
+    AccountResource newAccountResource = getAccountResource().toBuilder()
+        .setAcquiredDelegatedFrozenBalanceForEnergy(
+            Math.max(0, getAccountResource().getAcquiredDelegatedFrozenBalanceForEnergy() + balance))
+        .build();
 
     this.account = this.account.toBuilder()
         .setAccountResource(newAccountResource)
@@ -421,23 +447,23 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
         .build();
   }
 
-//  public void clearAssetV2() {
-//    this.account = this.account.toBuilder()
-//        .clearAssetV2()
-//        .build();
-//  }
-//
-//  public void clearLatestAssetOperationTimeV2() {
-//    this.account = this.account.toBuilder()
-//        .clearLatestAssetOperationTimeV2()
-//        .build();
-//  }
-//
-//  public void clearFreeAssetNetUsageV2() {
-//    this.account = this.account.toBuilder()
-//        .clearFreeAssetNetUsageV2()
-//        .build();
-//  }
+  public void clearAssetV2() {
+    this.account = this.account.toBuilder()
+        .clearAssetV2()
+        .build();
+  }
+
+  public void clearLatestAssetOperationTimeV2() {
+    this.account = this.account.toBuilder()
+        .clearLatestAssetOperationTimeV2()
+        .build();
+  }
+
+  public void clearFreeAssetNetUsageV2() {
+    this.account = this.account.toBuilder()
+        .clearFreeAssetNetUsageV2()
+        .build();
+  }
 
   public void clearVotes() {
     this.account = this.account.toBuilder()
@@ -456,6 +482,14 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
     }
   }
 
+  public long getTronPowerUsage() {
+    if (this.account.getVotesList() != null) {
+      return this.account.getVotesList().stream().mapToLong(Vote::getVoteCount).sum();
+    } else {
+      return 0L;
+    }
+  }
+
   //tp:Tron_Power
   public long getTronPower() {
     long tp = 0;
@@ -468,17 +502,27 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
     tp += account.getAccountResource().getDelegatedFrozenBalanceForEnergy();
     return tp;
   }
-//
-//  /**
-//   * asset balance enough
-//   */
-//  public boolean assetBalanceEnough(byte[] key, long amount) {
-//    Map<String, Long> assetMap = this.account.getAssetMap();
-//    String nameKey = ByteArray.toStr(key);
-//    Long currentAmount = assetMap.get(nameKey);
-//
-//    return amount > 0 && null != currentAmount && amount <= currentAmount;
-//  }
+
+  public long getAllTronPower() {
+    if (account.getOldTronPower() == -1) {
+      return getTronPowerFrozenBalance();
+    } else if (account.getOldTronPower() == 0) {
+      return getTronPower() + getTronPowerFrozenBalance();
+    } else {
+      return account.getOldTronPower() + getTronPowerFrozenBalance();
+    }
+  }
+
+  /**
+   * asset balance enough
+   */
+  public boolean assetBalanceEnough(byte[] key, long amount) {
+    Map<String, Long> assetMap = this.account.getAssetMap();
+    String nameKey = ByteArray.toStr(key);
+    Long currentAmount = assetMap.get(nameKey);
+
+    return amount > 0 && null != currentAmount && amount <= currentAmount;
+  }
 
   public boolean assetBalanceEnoughV2(byte[] key, long amount,
       DynamicPropertiesStore dynamicPropertiesStore) {
@@ -834,6 +878,52 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
 
   public long getEnergyFrozenBalance() {
     return this.account.getAccountResource().getFrozenBalanceForEnergy().getFrozenBalance();
+  }
+
+  public boolean oldTronPowerIsNotInitialized() {
+    return this.account.getOldTronPower() == 0;
+  }
+
+  public boolean oldTronPowerIsInvalid() {
+    return this.account.getOldTronPower() == -1;
+  }
+
+  public void initializeOldTronPower() {
+    long value = getTronPower();
+    if (value == 0) {
+      value = -1;
+    }
+    setInstance(getInstance().toBuilder()
+        .setOldTronPower(value)
+        .build());
+  }
+
+  public void invalidateOldTronPower() {
+    setInstance(getInstance().toBuilder()
+        .setOldTronPower(-1)
+        .build());
+  }
+
+
+  public void setOldTronPower(long value) {
+    setInstance(getInstance().toBuilder()
+        .setOldTronPower(value)
+        .build());
+  }
+
+  public void setFrozenForTronPower(long frozenBalance, long expireTime) {
+    Frozen newFrozen = Frozen.newBuilder()
+        .setFrozenBalance(frozenBalance)
+        .setExpireTime(expireTime)
+        .build();
+
+    setInstance(getInstance().toBuilder()
+        .setTronPower(newFrozen)
+        .build());
+  }
+
+  public long getTronPowerFrozenBalance() {
+    return this.account.getTronPower().getFrozenBalance();
   }
 
   public long getEnergyUsage() {
