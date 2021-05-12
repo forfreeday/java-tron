@@ -116,6 +116,7 @@ public class SnapshotManager implements RevokingDatabase {
   public void add(IRevokingDB db) {
     Chainbase revokingDB = (Chainbase) db;
     dbs.add(revokingDB);
+    //线程池,guava 工具
     flushServices.put(revokingDB.getDbName(),
             MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor()));
   }
@@ -290,6 +291,7 @@ public class SnapshotManager implements RevokingDatabase {
       deleteCheckpoint();
       createCheckpoint();
       long checkPointEnd = System.currentTimeMillis();
+      //刷新存储状态
       refresh();
       flushCount = 0;
       logger.info("flush cost:{}, create checkpoint cost:{}, refresh cost:{}",
