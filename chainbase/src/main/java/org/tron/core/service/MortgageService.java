@@ -204,6 +204,11 @@ public class MortgageService {
     return witnessStore.get(address.toByteArray());
   }
 
+  public WitnessCapsule getWitnessByAddress(ByteString address, long traceId) {
+    logger.info("sortWitness getWitnessByAddress traceId: {}", traceId);
+    return witnessStore.get(address.toByteArray());
+  }
+
   public void adjustAllowance(byte[] address, long amount) {
     try {
       if (amount <= 0) {
@@ -231,43 +236,32 @@ public class MortgageService {
     accountStore.put(account.createDbKey(), account);
   }
 
+
+  private void sortWitness(List<ByteString> list) {
+    long traceId = System.currentTimeMillis();
+    list.sort(Comparator.comparingLong((ByteString b) -> getWitnessByAddress(b, traceId).getVoteCount())
+            .reversed().thenComparing(Comparator.comparingInt(ByteString::hashCode).reversed()));
+  }
+
 //  private void sortWitness(List<ByteString> list) {
-//    list.sort(
-//            Comparator.comparingLong(
-//                    (ByteString b) -> {
-//                      long start = System.currentTimeMillis();
-//                      long voteCount = getWitnessByAddress(b).getVoteCount();
-//                      logger.info("sortWitness comparingLong: {}", System.currentTimeMillis() - start);
-//                      return voteCount;
-//                    }
-//            )
-//                    .reversed()
-//                    .thenComparing(
-//                            Comparator.comparingInt(ByteString::hashCode)
-//                                    .reversed()
-//                    )
+//    List<WitnessCapsule> witnessCapsules = new ArrayList<>(list.size());
+//    for (ByteString bytes : list) {
+//      WitnessCapsule witnessByAddress = getWitnessByAddress(bytes);
+//      witnessCapsules.add(witnessByAddress);
+//    }
+//    sortVoteCount(witnessCapsules);
+//    sortList(list);
+//  }
+//
+//  private void sortVoteCount(List<WitnessCapsule> witnessCapsules) {
+//    sort(witnessCapsules,
+//            Comparator.comparingLong(WitnessCapsule::getVoteCount).reversed()
 //    );
 //  }
 
-  private void sortWitness(List<ByteString> list) {
-    List<WitnessCapsule> witnessCapsules = new ArrayList<>(list.size());
-    for (ByteString bytes : list) {
-      WitnessCapsule witnessByAddress = getWitnessByAddress(bytes);
-      witnessCapsules.add(witnessByAddress);
-    }
-    sortVoteCount(witnessCapsules);
-    sortList(list);
-  }
-
-  private void sortVoteCount(List<WitnessCapsule> witnessCapsules) {
-    sort(witnessCapsules,
-            Comparator.comparingLong(WitnessCapsule::getVoteCount).reversed()
-    );
-  }
-
-  private void sortList(List<ByteString> list) {
-    list.sort(
-            Comparator.comparingInt(ByteString::hashCode).reversed()
-    );
-  }
+//  private void sortList(List<ByteString> list) {
+//    list.sort(
+//            Comparator.comparingInt(ByteString::hashCode).reversed()
+//    );
+//  }
 }
