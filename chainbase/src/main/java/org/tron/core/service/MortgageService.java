@@ -229,7 +229,27 @@ public class MortgageService {
   }
 
   private void sortWitness(List<ByteString> list) {
-    list.sort(Comparator.comparingLong((ByteString b) -> getWitnessByAddress(b).getVoteCount())
-        .reversed().thenComparing(Comparator.comparingInt(ByteString::hashCode).reversed()));
+    list.sort(
+            Comparator.comparingLong(
+                    (ByteString b) -> {
+                      long start = System.currentTimeMillis();
+                      long voteCount = getWitnessByAddress(b).getVoteCount();
+                      logger.info("sortWitness comparingLong: {}", System.currentTimeMillis() - start);
+                      return voteCount;
+                    }
+            )
+                    .reversed()
+                    .thenComparing(
+                            comparatorHashCode()
+                                    .reversed()
+                    )
+    );
+  }
+
+  private Comparator<ByteString> comparatorHashCode() {
+    long start = System.currentTimeMillis();
+    Comparator<ByteString> byteStringComparator = Comparator.comparingInt(ByteString::hashCode);
+    logger.info("sortWitness getByteStringComparator: {}", System.currentTimeMillis() - start);
+    return byteStringComparator;
   }
 }
