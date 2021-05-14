@@ -2,6 +2,7 @@ package org.tron.core.service;
 
 import com.google.protobuf.ByteString;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import lombok.Getter;
@@ -20,6 +21,8 @@ import org.tron.core.store.DelegationStore;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.core.store.WitnessStore;
 import org.tron.protos.Protocol.Vote;
+
+import static java.util.Collections.*;
 
 @Slf4j(topic = "mortgage")
 @Component
@@ -228,28 +231,43 @@ public class MortgageService {
     accountStore.put(account.createDbKey(), account);
   }
 
+//  private void sortWitness(List<ByteString> list) {
+//    list.sort(
+//            Comparator.comparingLong(
+//                    (ByteString b) -> {
+//                      long start = System.currentTimeMillis();
+//                      long voteCount = getWitnessByAddress(b).getVoteCount();
+//                      logger.info("sortWitness comparingLong: {}", System.currentTimeMillis() - start);
+//                      return voteCount;
+//                    }
+//            )
+//                    .reversed()
+//                    .thenComparing(
+//                            Comparator.comparingInt(ByteString::hashCode)
+//                                    .reversed()
+//                    )
+//    );
+//  }
+
   private void sortWitness(List<ByteString> list) {
-    list.sort(
-            Comparator.comparingLong(
-                    (ByteString b) -> {
-                      long start = System.currentTimeMillis();
-                      long voteCount = getWitnessByAddress(b).getVoteCount();
-                      logger.info("sortWitness comparingLong: {}", System.currentTimeMillis() - start);
-                      return voteCount;
-                    }
-            )
-                    .reversed()
-                    .thenComparing(
-                            comparatorHashCode()
-                                    .reversed()
-                    )
+    List<WitnessCapsule> witnessCapsules = new ArrayList<>(list.size());
+    for (ByteString bytes : list) {
+      WitnessCapsule witnessByAddress = getWitnessByAddress(bytes);
+      witnessCapsules.add(witnessByAddress);
+    }
+    sortVoteCount(witnessCapsules);
+    sortList(list);
+  }
+
+  private void sortVoteCount(List<WitnessCapsule> witnessCapsules) {
+    sort(witnessCapsules,
+            Comparator.comparingLong(WitnessCapsule::getVoteCount).reversed()
     );
   }
 
-  private Comparator<ByteString> comparatorHashCode() {
-    long start = System.currentTimeMillis();
-    Comparator<ByteString> byteStringComparator = Comparator.comparingInt(ByteString::hashCode);
-    logger.info("sortWitness getByteStringComparator: {}", System.currentTimeMillis() - start);
-    return byteStringComparator;
+  private void sortList(List<ByteString> list) {
+    list.sort(
+            Comparator.comparingInt(ByteString::hashCode).reversed()
+    );
   }
 }
