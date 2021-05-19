@@ -1416,6 +1416,7 @@ public class Manager {
     //parallel check sign
     if (!block.generatedByMyself) {
       try {
+        //并行验签
         preValidateTransactionSign(block);
       } catch (InterruptedException e) {
         logger.error("parallel check sign interrupted exception! block info: {}", block, e);
@@ -1637,6 +1638,7 @@ public class Manager {
     List<Future<Boolean>> futures = new ArrayList<>(transSize);
 
     for (TransactionCapsule transaction : block.getTransactions()) {
+      //线程池验签
       Future<Boolean> future = validateSignService
           .submit(new ValidateSignTask(transaction, countDownLatch, chainBaseManager));
       futures.add(future);
@@ -1826,6 +1828,7 @@ public class Manager {
     @Override
     public Boolean call() throws ValidateSignatureException {
       try {
+        //在这里验签
         trx.validateSignature(manager.getAccountStore(), manager.getDynamicPropertiesStore());
       } catch (ValidateSignatureException e) {
         throw e;
