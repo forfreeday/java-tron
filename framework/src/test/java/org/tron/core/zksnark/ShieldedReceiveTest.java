@@ -51,7 +51,6 @@ import org.tron.core.capsule.ReceiveDescriptionCapsule;
 import org.tron.core.capsule.SpendDescriptionCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.core.capsule.WitnessCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
@@ -74,7 +73,6 @@ import org.tron.core.exception.VMIllegalException;
 import org.tron.core.exception.ValidateSignatureException;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.services.http.FullNodeHttpApiService;
-import org.tron.core.store.AccountAssetIssueStore;
 import org.tron.core.utils.TransactionUtil;
 import org.tron.core.zen.ZenTransactionBuilder;
 import org.tron.core.zen.ZenTransactionBuilder.ReceiveDescriptionInfo;
@@ -230,20 +228,6 @@ public class ShieldedReceiveTest extends BlockGenerate {
                         OWNER_BALANCE);
         ownerCapsule.addAssetV2(ByteArray.fromString(String.valueOf(tokenId)), OWNER_BALANCE);
         chainBaseManager.getAccountStore().put(ownerCapsule.getAddress().toByteArray(), ownerCapsule);
-    }
-
-    private void createAccountAssetIssue() {
-        AccountAssetIssueCapsule ownerAssetIssueCapsule =
-                new AccountAssetIssueCapsule(
-                        ByteString.copyFromUtf8("owner"),
-                        ByteString.copyFrom(ByteArray.fromHexString(FROM_ADDRESS))
-                );
-        ownerAssetIssueCapsule.addAssetV2(ByteArray.fromString(String.valueOf(tokenId)), OWNER_BALANCE);
-        chainBaseManager.getAccountAssetIssueStore().put(ownerAssetIssueCapsule.getAddress().toByteArray(), ownerAssetIssueCapsule);
-        AccountAssetIssueCapsule blackhole = chainBaseManager.getAccountAssetIssueStore().getBlackhole();
-        AccountCapsule blackhole1 = chainBaseManager.getAccountStore().getBlackhole();
-        blackhole.getAssetIssuedName();
-        blackhole1.getBalance();
     }
 
     public IncrementalMerkleVoucherContainer createSimpleMerkleVoucherContainer(byte[] cm)
@@ -1506,7 +1490,7 @@ public class ShieldedReceiveTest extends BlockGenerate {
         ZenTransactionBuilder builder = new ZenTransactionBuilder(wallet);
         long ctx = JLibrustzcash.librustzcashSaplingProvingCtxInit();
         createCapsule();
-        createAccountAssetIssue();
+
         //generate input
         builder.setTransparentInput(ByteArray.fromHexString(FROM_ADDRESS), FROM_AMOUNT); // fail
         //builder.setTransparentInput(ByteArray.fromHexString(FROM_ADDRESS), OWNER_BALANCE); //success
@@ -1539,7 +1523,7 @@ public class ShieldedReceiveTest extends BlockGenerate {
 
     /*
     test if random DiversifierT is valid.
-  */
+   */
     @Test
     public void testDiversifierT() throws ZksnarkException {
         //byte[] data = org.tron.keystore.Wallet.generateRandomBytes(Constant.ZC_DIVERSIFIER_SIZE);
@@ -2425,7 +2409,6 @@ public class ShieldedReceiveTest extends BlockGenerate {
         WitnessCapsule witnessCapsule = new WitnessCapsule(ByteString.copyFrom(witnessAddress));
         chainBaseManager.addWitness(ByteString.copyFrom(witnessAddress));
 
-        createAccountAssetIssue();
         //sometimes generate block failed, try several times.
 
         Block block = getSignedBlock(witnessCapsule.getAddress(), 0, privateKey);
@@ -2471,7 +2454,6 @@ public class ShieldedReceiveTest extends BlockGenerate {
         TransactionCapsule transactionCap = builder.build();
 
         byte[] trxId = transactionCap.getTransactionId().getBytes();
-//        chainBaseManager.getAccountAssetIssueStore().getBlackhole().getAssetMapV2();
         boolean ok = dbManager.pushTransaction(transactionCap);
         Assert.assertTrue(ok);
 

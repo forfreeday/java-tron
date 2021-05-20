@@ -22,7 +22,6 @@ import org.tron.common.zksnark.LibrustzcashParam.CheckOutputParams;
 import org.tron.common.zksnark.LibrustzcashParam.CheckSpendParams;
 import org.tron.common.zksnark.LibrustzcashParam.FinalCheckParams;
 import org.tron.common.zksnark.MerkleContainer;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BytesCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
@@ -36,7 +35,6 @@ import org.tron.core.store.AssetIssueStore;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.core.store.NullifierStore;
 import org.tron.core.store.ZKProofStore;
-import org.tron.core.store.AccountAssetIssueStore;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result.code;
@@ -56,14 +54,13 @@ public class ShieldedTransferActuator extends AbstractActuator {
 
   @Override
   public boolean execute(Object result)
-      throws ContractExeException {
+          throws ContractExeException {
     TransactionResultCapsule ret = (TransactionResultCapsule) result;
     if (Objects.isNull(ret)) {
       throw new RuntimeException(ActuatorConstant.TX_RESULT_NULL);
     }
 
-//    AccountStore accountStore = chainBaseManager.getAccountStore();
-    AccountAssetIssueStore accountAssetIssueStore = chainBaseManager.getAccountAssetIssueStore();
+    AccountStore accountStore = chainBaseManager.getAccountStore();
     AssetIssueStore assetIssueStore = chainBaseManager.getAssetIssueStore();
     DynamicPropertiesStore dynamicStore = chainBaseManager.getDynamicPropertiesStore();
     try {
@@ -77,11 +74,11 @@ public class ShieldedTransferActuator extends AbstractActuator {
     try {
       if (shieldedTransferContract.getTransparentFromAddress().toByteArray().length > 0) {
         executeTransparentFrom(shieldedTransferContract.getTransparentFromAddress().toByteArray(),
-            shieldedTransferContract.getFromAmount(), ret, fee);
+                shieldedTransferContract.getFromAmount(), ret, fee);
       }
-      Commons.adjustAssetBalanceV2(accountAssetIssueStore.getBlackhole(),
-          CommonParameter.getInstance().getZenTokenId(), fee,
-              accountAssetIssueStore, assetIssueStore, dynamicStore);
+      Commons.adjustAssetBalanceV2(accountStore.getBlackhole(),
+              CommonParameter.getInstance().getZenTokenId(), fee,
+              accountStore, assetIssueStore, dynamicStore);
     } catch (BalanceInsufficientException e) {
       logger.debug(e.getMessage(), e);
       ret.setStatus(0, code.FAILED);
@@ -90,18 +87,18 @@ public class ShieldedTransferActuator extends AbstractActuator {
     }
 
     executeShielded(shieldedTransferContract.getSpendDescriptionList(),
-        shieldedTransferContract.getReceiveDescriptionList(), ret, fee);
+            shieldedTransferContract.getReceiveDescriptionList(), ret, fee);
 
     if (shieldedTransferContract.getTransparentToAddress().toByteArray().length > 0) {
       executeTransparentTo(shieldedTransferContract.getTransparentToAddress().toByteArray(),
-          shieldedTransferContract.getToAmount(), ret, fee);
+              shieldedTransferContract.getToAmount(), ret, fee);
     }
 
     //adjust and verify total shielded pool value
     try {
       Commons.adjustTotalShieldedPoolValue(
-          Math.addExact(Math.subtractExact(shieldedTransferContract.getToAmount(),
-              shieldedTransferContract.getFromAmount()), fee), dynamicStore);
+              Math.addExact(Math.subtractExact(shieldedTransferContract.getToAmount(),
+                      shieldedTransferContract.getFromAmount()), fee), dynamicStore);
     } catch (ArithmeticException | BalanceInsufficientException e) {
       logger.debug(e.getMessage(), e);
       ret.setStatus(0, code.FAILED);
@@ -115,18 +112,15 @@ public class ShieldedTransferActuator extends AbstractActuator {
   }
 
   private void executeTransparentFrom(byte[] ownerAddress, long amount,
-      TransactionResultCapsule ret, long fee)
-      throws ContractExeException {
+                                      TransactionResultCapsule ret, long fee)
+          throws ContractExeException {
     AccountStore accountStore = chainBaseManager.getAccountStore();
-    AccountAssetIssueStore accountAssetIssueStore = chainBaseManager.getAccountAssetIssueStore();
-
-
     AssetIssueStore assetIssueStore = chainBaseManager.getAssetIssueStore();
     DynamicPropertiesStore dynamicStore = chainBaseManager.getDynamicPropertiesStore();
     try {
       Commons.adjustAssetBalanceV2(ownerAddress, CommonParameter.getInstance()
-              .getZenTokenId(), -amount, accountAssetIssueStore, assetIssueStore,
-          dynamicStore);
+                      .getZenTokenId(), -amount, accountStore, assetIssueStore,
+              dynamicStore);
     } catch (BalanceInsufficientException e) {
       ret.setStatus(0, code.FAILED);
       ret.setShieldedTransactionFee(fee);
@@ -135,30 +129,23 @@ public class ShieldedTransferActuator extends AbstractActuator {
   }
 
   private void executeTransparentTo(byte[] toAddress, long amount, TransactionResultCapsule ret,
-      long fee)
-      throws ContractExeException {
+                                    long fee)
+          throws ContractExeException {
     AccountStore accountStore = chainBaseManager.getAccountStore();
-    AccountAssetIssueStore accountAssetIssueStore = chainBaseManager.getAccountAssetIssueStore();
     AssetIssueStore assetIssueStore = chainBaseManager.getAssetIssueStore();
     DynamicPropertiesStore dynamicStore = chainBaseManager.getDynamicPropertiesStore();
     try {
       AccountCapsule toAccount = accountStore.get(toAddress);
       if (toAccount == null) {
         boolean withDefaultPermission =
-            dynamicStore.getAllowMultiSign() == 1;
+                dynamicStore.getAllowMultiSign() == 1;
         toAccount = new AccountCapsule(ByteString.copyFrom(toAddress), AccountType.Normal,
-            dynamicStore.getLatestBlockHeaderTimestamp(), withDefaultPermission, dynamicStore);
+                dynamicStore.getLatestBlockHeaderTimestamp(), withDefaultPermission, dynamicStore);
         accountStore.put(toAddress, toAccount);
       }
-
-      AccountAssetIssueCapsule accountAssetIssueCapsule = accountAssetIssueStore.get(toAddress);
-      if (accountAssetIssueCapsule == null) {
-        accountAssetIssueStore.put(toAddress, new AccountAssetIssueCapsule(ByteString.copyFrom(toAddress)));
-      }
-
       Commons.adjustAssetBalanceV2(toAddress, CommonParameter.getInstance().getZenTokenId(),
-          amount, accountAssetIssueStore, assetIssueStore,
-          dynamicStore);
+              amount, accountStore, assetIssueStore,
+              dynamicStore);
     } catch (BalanceInsufficientException e) {
       ret.setStatus(0, code.FAILED);
       ret.setShieldedTransactionFee(fee);
@@ -168,15 +155,15 @@ public class ShieldedTransferActuator extends AbstractActuator {
 
   //record shielded transaction data.
   private void executeShielded(List<SpendDescription> spends, List<ReceiveDescription> receives,
-      TransactionResultCapsule ret, long fee)
-      throws ContractExeException {
+                               TransactionResultCapsule ret, long fee)
+          throws ContractExeException {
 
     NullifierStore nullifierStore = chainBaseManager.getNullifierStore();
     MerkleContainer merkleContainer = chainBaseManager.getMerkleContainer();
     //handle spends
     for (SpendDescription spend : spends) {
       if (nullifierStore.has(
-          new BytesCapsule(spend.getNullifier().toByteArray()).getData())) {
+              new BytesCapsule(spend.getNullifier().toByteArray()).getData())) {
         ret.setStatus(fee, code.FAILED);
         ret.setShieldedTransactionFee(fee);
         throw new ContractExeException("double spend");
@@ -196,7 +183,7 @@ public class ShieldedTransferActuator extends AbstractActuator {
       for (ReceiveDescription receive : receives) {
         try {
           merkleContainer
-              .saveCmIntoMerkleTree(currentMerkle, receive.getNoteCommitment().toByteArray());
+                  .saveCmIntoMerkleTree(currentMerkle, receive.getNoteCommitment().toByteArray());
         } catch (ZksnarkException e) {
           ret.setStatus(0, code.FAILED);
           ret.setShieldedTransactionFee(fee);
@@ -227,12 +214,12 @@ public class ShieldedTransferActuator extends AbstractActuator {
 
     if (dynamicStore.getAllowSameTokenName() != 1) {
       throw new ContractValidateException("shielded transaction is not allowed before "
-          + "ALLOW_SAME_TOKEN_NAME is opened by the committee");
+              + "ALLOW_SAME_TOKEN_NAME is opened by the committee");
     }
 
     if (!dynamicStore.supportShieldedTransaction()) {
       throw new ContractValidateException("Not support Shielded Transaction, need to be opened by"
-          + " the committee");
+              + " the committee");
     }
     long fee = calcFee(shieldedTransferContract);
     //transparent verification
@@ -250,7 +237,7 @@ public class ShieldedTransferActuator extends AbstractActuator {
         }
         nfSet.add(spendDescription.getNullifier());
         if (CommonParameter.getInstance().isFullNodeAllowShieldedTransactionArgs()
-            && !merkleContainer.merkleRootExist(spendDescription.getAnchor().toByteArray())) {
+                && !merkleContainer.merkleRootExist(spendDescription.getAnchor().toByteArray())) {
           throw new ContractValidateException("Rt is invalid.");
         }
         if (nullifierStore.has(spendDescription.getNullifier().toByteArray())) {
@@ -260,7 +247,7 @@ public class ShieldedTransferActuator extends AbstractActuator {
     }
 
     List<ReceiveDescription> receiveDescriptions = shieldedTransferContract
-        .getReceiveDescriptionList();
+            .getReceiveDescriptionList();
 
     HashSet<ByteString> receiveSet = new HashSet<>();
     for (ReceiveDescription receiveDescription : receiveDescriptions) {
@@ -270,7 +257,7 @@ public class ShieldedTransferActuator extends AbstractActuator {
       receiveSet.add(receiveDescription.getNoteCommitment());
     }
     if (CollectionUtils.isEmpty(spendDescriptions)
-        && CollectionUtils.isEmpty(receiveDescriptions)) {
+            && CollectionUtils.isEmpty(receiveDescriptions)) {
       throw new ContractValidateException("no Description found in transaction");
     }
 
@@ -288,7 +275,7 @@ public class ShieldedTransferActuator extends AbstractActuator {
   }
 
   private void checkProof(List<SpendDescription> spendDescriptions,
-      List<ReceiveDescription> receiveDescriptions, long fee) throws ZkProofValidateException {
+                          List<ReceiveDescription> receiveDescriptions, long fee) throws ZkProofValidateException {
     DynamicPropertiesStore dynamicStore = chainBaseManager.getDynamicPropertiesStore();
     ZKProofStore proofStore = chainBaseManager.getProofStore();
     if (proofStore.has(tx.getTransactionId().getBytes())) {
@@ -302,19 +289,19 @@ public class ShieldedTransferActuator extends AbstractActuator {
     byte[] signHash = getShieldTransactionHashIgnoreTypeException(tx.getInstance());
 
     if (CollectionUtils.isNotEmpty(spendDescriptions)
-        || CollectionUtils.isNotEmpty(receiveDescriptions)) {
+            || CollectionUtils.isNotEmpty(receiveDescriptions)) {
       long ctx = JLibrustzcash.librustzcashSaplingVerificationCtxInit();
       try {
         for (SpendDescription spendDescription : spendDescriptions) {
           if (!JLibrustzcash.librustzcashSaplingCheckSpend(
-              new CheckSpendParams(ctx,
-                  spendDescription.getValueCommitment().toByteArray(),
-                  spendDescription.getAnchor().toByteArray(),
-                  spendDescription.getNullifier().toByteArray(),
-                  spendDescription.getRk().toByteArray(),
-                  spendDescription.getZkproof().toByteArray(),
-                  spendDescription.getSpendAuthoritySignature().toByteArray(),
-                  signHash)
+                  new CheckSpendParams(ctx,
+                          spendDescription.getValueCommitment().toByteArray(),
+                          spendDescription.getAnchor().toByteArray(),
+                          spendDescription.getNullifier().toByteArray(),
+                          spendDescription.getRk().toByteArray(),
+                          spendDescription.getZkproof().toByteArray(),
+                          spendDescription.getSpendAuthoritySignature().toByteArray(),
+                          signHash)
           )) {
             throw new ZkProofValidateException("librustzcashSaplingCheckSpend error", true);
           }
@@ -322,15 +309,15 @@ public class ShieldedTransferActuator extends AbstractActuator {
 
         for (ReceiveDescription receiveDescription : receiveDescriptions) {
           if (receiveDescription.getCEnc().size() != ZC_ENCCIPHERTEXT_SIZE
-              || receiveDescription.getCOut().size() != ZC_OUTCIPHERTEXT_SIZE) {
+                  || receiveDescription.getCOut().size() != ZC_OUTCIPHERTEXT_SIZE) {
             throw new ZkProofValidateException("Cout or CEnc size error", true);
           }
           if (!JLibrustzcash.librustzcashSaplingCheckOutput(
-              new CheckOutputParams(ctx,
-                  receiveDescription.getValueCommitment().toByteArray(),
-                  receiveDescription.getNoteCommitment().toByteArray(),
-                  receiveDescription.getEpk().toByteArray(),
-                  receiveDescription.getZkproof().toByteArray())
+                  new CheckOutputParams(ctx,
+                          receiveDescription.getValueCommitment().toByteArray(),
+                          receiveDescription.getNoteCommitment().toByteArray(),
+                          receiveDescription.getEpk().toByteArray(),
+                          receiveDescription.getZkproof().toByteArray())
           )) {
             throw new ZkProofValidateException("librustzcashSaplingCheckOutput error", true);
           }
@@ -338,10 +325,10 @@ public class ShieldedTransferActuator extends AbstractActuator {
 
         long valueBalance;
         long totalShieldedPoolValue = dynamicStore
-            .getTotalShieldedPoolValue();
+                .getTotalShieldedPoolValue();
         try {
           valueBalance = Math.addExact(Math.subtractExact(shieldedTransferContract.getToAmount(),
-              shieldedTransferContract.getFromAmount()), fee);
+                  shieldedTransferContract.getFromAmount()), fee);
           totalShieldedPoolValue = Math.subtractExact(totalShieldedPoolValue, valueBalance);
         } catch (ArithmeticException e) {
           logger.debug(e.getMessage(), e);
@@ -353,10 +340,10 @@ public class ShieldedTransferActuator extends AbstractActuator {
         }
 
         if (!JLibrustzcash.librustzcashSaplingFinalCheck(
-            new FinalCheckParams(ctx,
-                valueBalance,
-                shieldedTransferContract.getBindingSignature().toByteArray(),
-                signHash)
+                new FinalCheckParams(ctx,
+                        valueBalance,
+                        shieldedTransferContract.getBindingSignature().toByteArray(),
+                        signHash)
         )) {
           throw new ZkProofValidateException("librustzcashSaplingFinalCheck error", true);
         }
@@ -377,34 +364,34 @@ public class ShieldedTransferActuator extends AbstractActuator {
 
 
   private void checkSender(ShieldedTransferContract shieldedTransferContract)
-      throws ContractValidateException {
+          throws ContractValidateException {
     if (!shieldedTransferContract.getTransparentFromAddress().isEmpty()
-        && shieldedTransferContract.getSpendDescriptionCount() > 0) {
+            && shieldedTransferContract.getSpendDescriptionCount() > 0) {
       throw new ContractValidateException("ShieldedTransferContract error, more than 1 senders");
     }
     if (shieldedTransferContract.getTransparentFromAddress().isEmpty()
-        && shieldedTransferContract.getSpendDescriptionCount() == 0) {
+            && shieldedTransferContract.getSpendDescriptionCount() == 0) {
       throw new ContractValidateException("ShieldedTransferContract error, no sender");
     }
     if (shieldedTransferContract.getSpendDescriptionCount() > 1) {
       throw new ContractValidateException("ShieldedTransferContract error, number of spend notes"
-          + " should not be more than 1");
+              + " should not be more than 1");
     }
   }
 
   private void checkReceiver(ShieldedTransferContract shieldedTransferContract)
-      throws ContractValidateException {
+          throws ContractValidateException {
     if (shieldedTransferContract.getReceiveDescriptionCount() == 0) {
       throw new ContractValidateException("ShieldedTransferContract error, no output cm");
     }
     if (shieldedTransferContract.getReceiveDescriptionCount() > 2) {
       throw new ContractValidateException("ShieldedTransferContract error, number of receivers"
-          + " should not be more than 2");
+              + " should not be more than 2");
     }
   }
 
   private void validateTransparent(ShieldedTransferContract shieldedTransferContract, long fee)
-      throws ContractValidateException {
+          throws ContractValidateException {
     boolean hasTransparentFrom;
     boolean hasTransparentTo;
     byte[] toAddress = shieldedTransferContract.getTransparentToAddress().toByteArray();
@@ -442,19 +429,19 @@ public class ShieldedTransferActuator extends AbstractActuator {
       AccountCapsule ownerAccount = accountStore.get(ownerAddress);
       if (ownerAccount == null) {
         throw new ContractValidateException("Validate ShieldedTransferContract error, "
-            + "no OwnerAccount");
+                + "no OwnerAccount");
       }
-      long balance = getZenBalance(ownerAddress);
+      long balance = getZenBalance(ownerAccount);
       if (fromAmount <= 0) {
         throw new ContractValidateException("from_amount must be greater than 0");
       }
       if (balance < fromAmount) {
         throw new ContractValidateException(
-            "Validate ShieldedTransferContract error, balance is not sufficient");
+                "Validate ShieldedTransferContract error, balance is not sufficient");
       }
       if (fromAmount <= fee) {
         throw new ContractValidateException(
-            "Validate ShieldedTransferContract error, fromAmount should be great than fee");
+                "Validate ShieldedTransferContract error, fromAmount should be great than fee");
       }
     }
 
@@ -465,7 +452,7 @@ public class ShieldedTransferActuator extends AbstractActuator {
       AccountCapsule toAccount = accountStore.get(toAddress);
       if (toAccount != null) {
         try {
-          Math.addExact(getZenBalance(toAddress), toAmount);
+          Math.addExact(getZenBalance(toAccount), toAmount);
         } catch (ArithmeticException e) {
           logger.debug(e.getMessage(), e);
           throw new ContractValidateException(e.getMessage());
@@ -474,13 +461,12 @@ public class ShieldedTransferActuator extends AbstractActuator {
     }
   }
 
-  private long getZenBalance(byte[] address) {
-    AccountAssetIssueCapsule accountAssetIssueCapsule = chainBaseManager.getAccountAssetIssueStore().get(address);
-    if (accountAssetIssueCapsule.getAssetMapV2().get(CommonParameter
+  private long getZenBalance(AccountCapsule account) {
+    if (account.getAssetMapV2().get(CommonParameter
             .getInstance().getZenTokenId()) == null) {
       return 0L;
     } else {
-      return accountAssetIssueCapsule.getAssetMapV2().get(CommonParameter
+      return account.getAssetMapV2().get(CommonParameter
               .getInstance().getZenTokenId());
     }
   }
@@ -502,7 +488,7 @@ public class ShieldedTransferActuator extends AbstractActuator {
       AccountCapsule toAccount = chainBaseManager.getAccountStore().get(toAddress);
       if (toAccount == null) {
         return chainBaseManager.getDynamicPropertiesStore()
-            .getShieldedTransactionCreateAccountFee();
+                .getShieldedTransactionCreateAccountFee();
       }
     }
     return chainBaseManager.getDynamicPropertiesStore().getShieldedTransactionFee();

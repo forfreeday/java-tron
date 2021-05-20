@@ -116,16 +116,6 @@ public class Value {
   /**
    * @return
    */
-  public AccountAssetIssueCapsule getAccountAssetIssue() {
-    if (ArrayUtils.isEmpty(any)) {
-      return null;
-    }
-    return new AccountAssetIssueCapsule(any);
-  }
-
-  /**
-   * @return
-   */
   public BytesCapsule getBytes() {
     if (ArrayUtils.isEmpty(any)) {
       return null;
@@ -235,6 +225,13 @@ public class Value {
       return null;
     }
     return new DelegatedResourceCapsule(any);
+  }
+
+  public DelegatedResourceAccountIndexCapsule getDelegatedResourceAccountIndex() {
+    if (ArrayUtils.isEmpty(any)) {
+      return null;
+    }
+    return new DelegatedResourceAccountIndexCapsule(any);
   }
 
   @Override

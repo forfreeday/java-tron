@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.tron.common.utils.Commons;
 import org.tron.common.utils.DecodeUtil;
 import org.tron.common.utils.StringUtil;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.ExchangeCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
@@ -24,7 +23,6 @@ import org.tron.core.store.AssetIssueStore;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.core.store.ExchangeStore;
 import org.tron.core.store.ExchangeV2Store;
-import org.tron.core.store.AccountAssetIssueStore;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result.code;
 import org.tron.protos.contract.ExchangeContract.ExchangeCreateContract;
@@ -45,20 +43,15 @@ public class ExchangeCreateActuator extends AbstractActuator {
 
     long fee = calcFee();
     AccountStore accountStore = chainBaseManager.getAccountStore();
-    AccountAssetIssueStore accountAssetIssueStore = chainBaseManager.getAccountAssetIssueStore();
-
     DynamicPropertiesStore dynamicStore = chainBaseManager.getDynamicPropertiesStore();
     AssetIssueStore assetIssueStore = chainBaseManager.getAssetIssueStore();
     ExchangeStore exchangeStore = chainBaseManager.getExchangeStore();
     ExchangeV2Store exchangeV2Store = chainBaseManager.getExchangeV2Store();
     try {
       final ExchangeCreateContract exchangeCreateContract = this.any
-          .unpack(ExchangeCreateContract.class);
-      byte[] address = exchangeCreateContract.getOwnerAddress().toByteArray();
+              .unpack(ExchangeCreateContract.class);
       AccountCapsule accountCapsule = accountStore
-          .get(address);
-
-      AccountAssetIssueCapsule accountAssetIssueCapsule = accountAssetIssueStore.get(address);
+              .get(exchangeCreateContract.getOwnerAddress().toByteArray());
 
       byte[] firstTokenID = exchangeCreateContract.getFirstTokenId().toByteArray();
       byte[] secondTokenID = exchangeCreateContract.getSecondTokenId().toByteArray();
@@ -72,15 +65,15 @@ public class ExchangeCreateActuator extends AbstractActuator {
       if (Arrays.equals(firstTokenID, TRX_SYMBOL_BYTES)) {
         accountCapsule.setBalance(newBalance - firstTokenBalance);
       } else {
-        accountAssetIssueCapsule
-            .reduceAssetAmountV2(firstTokenID, firstTokenBalance, dynamicStore, assetIssueStore);
+        accountCapsule
+                .reduceAssetAmountV2(firstTokenID, firstTokenBalance, dynamicStore, assetIssueStore);
       }
 
       if (Arrays.equals(secondTokenID, TRX_SYMBOL_BYTES)) {
         accountCapsule.setBalance(newBalance - secondTokenBalance);
       } else {
-        accountAssetIssueCapsule
-            .reduceAssetAmountV2(secondTokenID, secondTokenBalance, dynamicStore, assetIssueStore);
+        accountCapsule
+                .reduceAssetAmountV2(secondTokenID, secondTokenBalance, dynamicStore, assetIssueStore);
       }
 
       long id = dynamicStore.getLatestExchangeNum() + 1;
@@ -88,13 +81,13 @@ public class ExchangeCreateActuator extends AbstractActuator {
       if (dynamicStore.getAllowSameTokenName() == 0) {
         //save to old asset store
         ExchangeCapsule exchangeCapsule =
-            new ExchangeCapsule(
-                exchangeCreateContract.getOwnerAddress(),
-                id,
-                now,
-                firstTokenID,
-                secondTokenID
-            );
+                new ExchangeCapsule(
+                        exchangeCreateContract.getOwnerAddress(),
+                        id,
+                        now,
+                        firstTokenID,
+                        secondTokenID
+                );
         exchangeCapsule.setBalance(firstTokenBalance, secondTokenBalance);
         exchangeStore.put(exchangeCapsule.createDbKey(), exchangeCapsule);
 
@@ -112,19 +105,18 @@ public class ExchangeCreateActuator extends AbstractActuator {
       {
         // only save to new asset store
         ExchangeCapsule exchangeCapsuleV2 =
-            new ExchangeCapsule(
-                exchangeCreateContract.getOwnerAddress(),
-                id,
-                now,
-                firstTokenID,
-                secondTokenID
-            );
+                new ExchangeCapsule(
+                        exchangeCreateContract.getOwnerAddress(),
+                        id,
+                        now,
+                        firstTokenID,
+                        secondTokenID
+                );
         exchangeCapsuleV2.setBalance(firstTokenBalance, secondTokenBalance);
         exchangeV2Store.put(exchangeCapsuleV2.createDbKey(), exchangeCapsuleV2);
       }
-      byte[] accountAddress = accountCapsule.createDbKey();
-      accountStore.put(accountAddress, accountCapsule);
-      accountAssetIssueStore.put(accountAddress, accountAssetIssueCapsule);
+
+      accountStore.put(accountCapsule.createDbKey(), accountCapsule);
       dynamicStore.saveLatestExchangeNum(id);
       if (dynamicStore.supportBlackHoleOptimization()) {
         dynamicStore.burnTrx(fee);
@@ -150,12 +142,11 @@ public class ExchangeCreateActuator extends AbstractActuator {
       throw new ContractValidateException(ActuatorConstant.STORE_NOT_EXIST);
     }
     AccountStore accountStore = chainBaseManager.getAccountStore();
-    AccountAssetIssueStore accountAssetIssueStore = chainBaseManager.getAccountAssetIssueStore();
     DynamicPropertiesStore dynamicStore = chainBaseManager.getDynamicPropertiesStore();
     if (!this.any.is(ExchangeCreateContract.class)) {
       throw new ContractValidateException(
-          "contract type error,expected type [ExchangeCreateContract],real type[" + any
-              .getClass() + "]");
+              "contract type error,expected type [ExchangeCreateContract],real type[" + any
+                      .getClass() + "]");
     }
     final ExchangeCreateContract contract;
     try {
@@ -176,7 +167,7 @@ public class ExchangeCreateActuator extends AbstractActuator {
     }
 
     AccountCapsule accountCapsule = accountStore.get(ownerAddress);
-    AccountAssetIssueCapsule accountAssetIssueCapsule = accountAssetIssueStore.get(ownerAddress);
+
     if (accountCapsule.getBalance() < calcFee()) {
       throw new ContractValidateException("No enough balance for exchange create fee!");
     }
@@ -213,7 +204,7 @@ public class ExchangeCreateActuator extends AbstractActuator {
         throw new ContractValidateException("balance is not enough");
       }
     } else {
-      if (!accountAssetIssueCapsule.assetBalanceEnoughV2(firstTokenID, firstTokenBalance, dynamicStore)) {
+      if (!accountCapsule.assetBalanceEnoughV2(firstTokenID, firstTokenBalance, dynamicStore)) {
         throw new ContractValidateException("first token balance is not enough");
       }
     }
@@ -223,7 +214,7 @@ public class ExchangeCreateActuator extends AbstractActuator {
         throw new ContractValidateException("balance is not enough");
       }
     } else {
-      if (!accountAssetIssueCapsule.assetBalanceEnoughV2(secondTokenID, secondTokenBalance, dynamicStore)) {
+      if (!accountCapsule.assetBalanceEnoughV2(secondTokenID, secondTokenBalance, dynamicStore)) {
         throw new ContractValidateException("second token balance is not enough");
       }
     }

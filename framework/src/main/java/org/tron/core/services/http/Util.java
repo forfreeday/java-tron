@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
@@ -43,7 +44,6 @@ import org.tron.core.config.args.Args;
 import org.tron.core.db.TransactionTrace;
 import org.tron.core.services.http.JsonFormat.ParseException;
 import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.AccountAssetIssue;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
@@ -445,36 +445,6 @@ public class Util {
     }
   }
 
-  public static String convertOutput(Account account, AccountAssetIssue accountAssetIssue) {
-
-    if (accountAssetIssue.getAssetIssuedID().isEmpty()) {
-      return JsonFormat.printToString(account, false);
-    } else {
-      account = convertAccount(account, accountAssetIssue);
-      JSONObject accountJson = JSONObject.parseObject(JsonFormat.printToString(account, false));
-      String assetId = accountJson.get("asset_issued_ID").toString();
-      accountJson.put("asset_issued_ID",
-          ByteString.copyFrom(ByteArray.fromHexString(assetId)).toStringUtf8());
-      return accountJson.toJSONString();
-    }
-  }
-
-  public static Account convertAccount(Account account, AccountAssetIssue accountAssetIssue) {
-    account = account.toBuilder()
-            .setAddress(accountAssetIssue.getAddress())
-            .setAssetIssuedID(accountAssetIssue.getAssetIssuedID())
-            .setAssetIssuedName(accountAssetIssue.getAssetIssuedName())
-            .putAllAsset(accountAssetIssue.getAssetMap())
-            .putAllAssetV2(accountAssetIssue.getAssetV2Map())
-
-            .putAllFreeAssetNetUsage(accountAssetIssue.getFreeAssetNetUsageMap())
-            .putAllFreeAssetNetUsageV2(accountAssetIssue.getFreeAssetNetUsageMap())
-            .putAllLatestAssetOperationTime(accountAssetIssue.getLatestAssetOperationTimeMap())
-            .putAllLatestAssetOperationTimeV2(accountAssetIssue.getLatestAssetOperationTimeV2Map())
-            .build();
-    return account;
-  }
-
   public static void printAccount(Account reply, HttpServletResponse response, Boolean visible)
       throws java.io.IOException {
     if (reply != null) {
@@ -482,19 +452,6 @@ public class Util {
         response.getWriter().println(JsonFormat.printToString(reply, true));
       } else {
         response.getWriter().println(convertOutput(reply));
-      }
-    } else {
-      response.getWriter().println("{}");
-    }
-  }
-
-  public static void printAccount(Account reply, AccountAssetIssue accountAssetIssue, HttpServletResponse response, Boolean visible)
-          throws java.io.IOException {
-    if (reply != null) {
-      if (visible) {
-        response.getWriter().println(JsonFormat.printToString(convertAccount(reply, accountAssetIssue), true));
-      } else {
-        response.getWriter().println(convertOutput(reply, accountAssetIssue));
       }
     } else {
       response.getWriter().println("{}");

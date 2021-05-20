@@ -18,10 +18,6 @@ contract TestFreeze {
         A.transfer(10);
     }
 
-    function send(address payable A, uint256 value) external {
-        A.transfer(value);
-    }
-
     function getExpireTime(address payable target, uint res) external view returns(uint) {
         return target.freezeExpireTime(res);
     }
@@ -53,11 +49,5 @@ contract C {
 
     function destroy(address payable inheritor) external {
         selfdestruct(inheritor);
-    }
-}
-
-contract D {
-    constructor() public payable {
-        msg.sender.freeze(msg.value, 1);
     }
 }

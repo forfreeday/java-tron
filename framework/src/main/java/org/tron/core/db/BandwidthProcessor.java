@@ -12,7 +12,6 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.AssetIssueCapsule;
 import org.tron.core.capsule.TransactionCapsule;
@@ -40,7 +39,6 @@ public class BandwidthProcessor extends ResourceProcessor {
   }
 
   private void updateUsage(AccountCapsule accountCapsule, long now) {
-    AccountAssetIssueCapsule accountAssetIssueCapsule = chainBaseManager.getAccountAssetIssueStore().get(accountCapsule.getAddress().toByteArray());
     long oldNetUsage = accountCapsule.getNetUsage();
     long latestConsumeTime = accountCapsule.getLatestConsumeTime();
     accountCapsule.setNetUsage(increase(oldNetUsage, 0, latestConsumeTime, now));
@@ -49,19 +47,19 @@ public class BandwidthProcessor extends ResourceProcessor {
     accountCapsule.setFreeNetUsage(increase(oldFreeNetUsage, 0, latestConsumeFreeTime, now));
 
     if (chainBaseManager.getDynamicPropertiesStore().getAllowSameTokenName() == 0) {
-      Map<String, Long> assetMap = accountAssetIssueCapsule.getAssetMap();
+      Map<String, Long> assetMap = accountCapsule.getAssetMap();
       assetMap.forEach((assetName, balance) -> {
-        long oldFreeAssetNetUsage = accountAssetIssueCapsule.getFreeAssetNetUsage(assetName);
-        long latestAssetOperationTime = accountAssetIssueCapsule.getLatestAssetOperationTime(assetName);
-        accountAssetIssueCapsule.putFreeAssetNetUsage(assetName,
+        long oldFreeAssetNetUsage = accountCapsule.getFreeAssetNetUsage(assetName);
+        long latestAssetOperationTime = accountCapsule.getLatestAssetOperationTime(assetName);
+        accountCapsule.putFreeAssetNetUsage(assetName,
             increase(oldFreeAssetNetUsage, 0, latestAssetOperationTime, now));
       });
     }
-    Map<String, Long> assetMapV2 = accountAssetIssueCapsule.getAssetMapV2();
+    Map<String, Long> assetMapV2 = accountCapsule.getAssetMapV2();
     assetMapV2.forEach((assetName, balance) -> {
-      long oldFreeAssetNetUsage = accountAssetIssueCapsule.getFreeAssetNetUsageV2(assetName);
-      long latestAssetOperationTime = accountAssetIssueCapsule.getLatestAssetOperationTimeV2(assetName);
-      accountAssetIssueCapsule.putFreeAssetNetUsageV2(assetName,
+      long oldFreeAssetNetUsage = accountCapsule.getFreeAssetNetUsageV2(assetName);
+      long latestAssetOperationTime = accountCapsule.getLatestAssetOperationTimeV2(assetName);
+      accountCapsule.putFreeAssetNetUsageV2(assetName,
           increase(oldFreeAssetNetUsage, 0, latestAssetOperationTime, now));
     });
   }
@@ -243,7 +241,6 @@ public class BandwidthProcessor extends ResourceProcessor {
       throw new ContractValidateException("asset does not exist");
     }
 
-    AccountAssetIssueCapsule accountAssetIssueCapsule = chainBaseManager.getAccountAssetIssueStore().get(accountCapsule.getAddress().toByteArray());
     String tokenName = ByteArray.toStr(assetName.toByteArray());
     String tokenID = assetIssueCapsule.getId();
     if (assetIssueCapsule.getOwnerAddress() == accountCapsule.getAddress()) {
@@ -267,13 +264,13 @@ public class BandwidthProcessor extends ResourceProcessor {
     long freeAssetNetUsage;
     long latestAssetOperationTime;
     if (chainBaseManager.getDynamicPropertiesStore().getAllowSameTokenName() == 0) {
-      freeAssetNetUsage = accountAssetIssueCapsule
+      freeAssetNetUsage = accountCapsule
           .getFreeAssetNetUsage(tokenName);
-      latestAssetOperationTime = accountAssetIssueCapsule
+      latestAssetOperationTime = accountCapsule
           .getLatestAssetOperationTime(tokenName);
     } else {
-      freeAssetNetUsage = accountAssetIssueCapsule.getFreeAssetNetUsageV2(tokenID);
-      latestAssetOperationTime = accountAssetIssueCapsule.getLatestAssetOperationTimeV2(tokenID);
+      freeAssetNetUsage = accountCapsule.getFreeAssetNetUsageV2(tokenID);
+      latestAssetOperationTime = accountCapsule.getLatestAssetOperationTimeV2(tokenID);
     }
 
     long newFreeAssetNetUsage = increase(freeAssetNetUsage, 0,
@@ -317,12 +314,12 @@ public class BandwidthProcessor extends ResourceProcessor {
 
     accountCapsule.setLatestOperationTime(latestOperationTime);
     if (chainBaseManager.getDynamicPropertiesStore().getAllowSameTokenName() == 0) {
-      accountAssetIssueCapsule.putLatestAssetOperationTimeMap(tokenName,
+      accountCapsule.putLatestAssetOperationTimeMap(tokenName,
           latestAssetOperationTime);
-      accountAssetIssueCapsule.putFreeAssetNetUsage(tokenName, newFreeAssetNetUsage);
-      accountAssetIssueCapsule.putLatestAssetOperationTimeMapV2(tokenID,
+      accountCapsule.putFreeAssetNetUsage(tokenName, newFreeAssetNetUsage);
+      accountCapsule.putLatestAssetOperationTimeMapV2(tokenID,
           latestAssetOperationTime);
-      accountAssetIssueCapsule.putFreeAssetNetUsageV2(tokenID, newFreeAssetNetUsage);
+      accountCapsule.putFreeAssetNetUsageV2(tokenID, newFreeAssetNetUsage);
 
       chainBaseManager.getAssetIssueStore().put(assetIssueCapsule.createDbKey(), assetIssueCapsule);
 
@@ -333,9 +330,9 @@ public class BandwidthProcessor extends ResourceProcessor {
       chainBaseManager.getAssetIssueV2Store()
           .put(assetIssueCapsuleV2.createDbV2Key(), assetIssueCapsuleV2);
     } else {
-      accountAssetIssueCapsule.putLatestAssetOperationTimeMapV2(tokenID,
+      accountCapsule.putLatestAssetOperationTimeMapV2(tokenID,
           latestAssetOperationTime);
-      accountAssetIssueCapsule.putFreeAssetNetUsageV2(tokenID, newFreeAssetNetUsage);
+      accountCapsule.putFreeAssetNetUsageV2(tokenID, newFreeAssetNetUsage);
       chainBaseManager.getAssetIssueV2Store()
           .put(assetIssueCapsule.createDbV2Key(), assetIssueCapsule);
     }
@@ -343,7 +340,7 @@ public class BandwidthProcessor extends ResourceProcessor {
     chainBaseManager.getAccountStore().put(accountCapsule.createDbKey(), accountCapsule);
     chainBaseManager.getAccountStore().put(issuerAccountCapsule.createDbKey(),
         issuerAccountCapsule);
-    chainBaseManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.getAddress().toByteArray(), accountAssetIssueCapsule);
+
     return true;
 
   }

@@ -50,7 +50,6 @@ import org.tron.core.capsule.ReceiveDescriptionCapsule;
 import org.tron.core.capsule.SpendDescriptionCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.db.Manager;
@@ -160,15 +159,6 @@ public class SendCoinShieldTest {
             .setUrl(ByteString.copyFrom(ByteArray.fromString(URL))).build();
     AssetIssueCapsule assetIssueCapsule = new AssetIssueCapsule(assetIssueContract);
     dbManager.getAssetIssueV2Store().put(assetIssueCapsule.createDbV2Key(), assetIssueCapsule);
-  }
-
-  private void createAccountAssetIssueCapsule() {
-    AccountAssetIssueCapsule ownerCapsule =
-            new AccountAssetIssueCapsule(
-                    ByteString.copyFromUtf8("owner"),
-                    ByteString.copyFrom(ByteArray.fromHexString(PUBLIC_ADDRESS_ONE))
-            );
-    dbManager.getAccountAssetIssueStore().put(ownerCapsule.createDbKey(), ownerCapsule);
   }
 
   private void addZeroValueOutputNote(ZenTransactionBuilder builder) throws ZksnarkException {
@@ -475,6 +465,7 @@ public class SendCoinShieldTest {
     dbManager.getDynamicPropertiesStore().saveAllowShieldedTransaction(1);
     dbManager.getDynamicPropertiesStore().saveTotalShieldedPoolValue(1000 * 1000000L);
     ZenTransactionBuilder builder = new ZenTransactionBuilder(wallet);
+
     // generate spend proof
     SpendingKey sk = SpendingKey
             .decode("ff2c06269315333a9207f817d2eca0ac555ca8f90196976324c7756504e7c9ee");
@@ -488,7 +479,6 @@ public class SendCoinShieldTest {
             .putMerkleTreeIntoStore(anchor, voucher.getVoucherCapsule().getTree());
     builder.addSpend(expsk, note, anchor, voucher);
 
-    createAccountAssetIssueCapsule();
     // generate output proof
     SpendingKey spendingKey = SpendingKey.random();
     FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
@@ -1024,16 +1014,10 @@ public class SendCoinShieldTest {
       AccountCapsule ownerCapsule = new AccountCapsule(ByteString.copyFromUtf8("owner"),
               ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS)), AccountType.Normal,
               110_000_000L);
-      dbManager.getAccountStore().put(ownerCapsule.getAddress().toByteArray(), ownerCapsule);
-
-      AccountAssetIssueCapsule ownerAccountAssetIssue = new AccountAssetIssueCapsule(
-              ByteString.copyFromUtf8("owner"),
-              ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS))
-      );
-      ownerAccountAssetIssue.setInstance(ownerAccountAssetIssue.getInstance().toBuilder()
+      ownerCapsule.setInstance(ownerCapsule.getInstance().toBuilder()
               .putAssetV2(CommonParameter.getInstance().zenTokenId, 110_000_000L).build());
-      dbManager.getAccountAssetIssueStore().put(ownerAccountAssetIssue.getAddress().toByteArray(), ownerAccountAssetIssue);
 
+      dbManager.getAccountStore().put(ownerCapsule.getAddress().toByteArray(), ownerCapsule);
       builder.setTransparentInput(ByteArray.fromHexString(OWNER_ADDRESS), 100_000_000L);
 
       // generate output proof
@@ -1065,17 +1049,10 @@ public class SendCoinShieldTest {
       AccountCapsule ownerCapsule = new AccountCapsule(ByteString.copyFromUtf8("owner"),
               ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS)), AccountType.Normal,
               110_000_000L);
-      dbManager.getAccountStore().put(ownerCapsule.getAddress().toByteArray(), ownerCapsule);
 
-      AccountAssetIssueCapsule ownerAccountAssetIssue = new AccountAssetIssueCapsule(
-              ByteString.copyFromUtf8("owner"),
-              ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS))
-      );
-      ownerAccountAssetIssue.setInstance(ownerAccountAssetIssue.getInstance().toBuilder()
+      ownerCapsule.setInstance(ownerCapsule.getInstance().toBuilder()
               .putAssetV2(CommonParameter.getInstance().zenTokenId, 110_000_000L).build());
-      dbManager.getAccountAssetIssueStore().put(ownerAccountAssetIssue.getAddress().toByteArray(),
-              ownerAccountAssetIssue);
-
+      dbManager.getAccountStore().put(ownerCapsule.getAddress().toByteArray(), ownerCapsule);
       builder.setTransparentInput(ByteArray.fromHexString(OWNER_ADDRESS), 100_000_000L);
 
       // generate output proof
@@ -1090,11 +1067,6 @@ public class SendCoinShieldTest {
       AccountCapsule toCapsule = new AccountCapsule(ByteString.copyFromUtf8("to"),
               ByteString.copyFrom(ByteArray.fromHexString(TO_ADDRESS)), AccountType.Normal, 0L);
       dbManager.getAccountStore().put(toCapsule.getAddress().toByteArray(), toCapsule);
-      AccountAssetIssueCapsule toAccountAssetIssue = new AccountAssetIssueCapsule(
-              ByteString.copyFromUtf8("to"),
-              ByteString.copyFrom(ByteArray.fromHexString(TO_ADDRESS))
-      );
-      dbManager.getAccountAssetIssueStore().put(toAccountAssetIssue.getAddress().toByteArray(), toAccountAssetIssue);
       builder.setTransparentOutput(ByteArray.fromHexString(TO_ADDRESS), 10_000_000L);
 
       TransactionCapsule transactionCap = builder.build();
@@ -1139,19 +1111,12 @@ public class SendCoinShieldTest {
       AccountCapsule toCapsule = new AccountCapsule(ByteString.copyFromUtf8("to"),
               ByteString.copyFrom(ByteArray.fromHexString(TO_ADDRESS)), AccountType.Normal, 0L);
       dbManager.getAccountStore().put(toCapsule.getAddress().toByteArray(), toCapsule);
-
-      AccountAssetIssueCapsule toAccountAssetIssue = new AccountAssetIssueCapsule(
-              ByteString.copyFromUtf8("to"),
-              ByteString.copyFrom(ByteArray.fromHexString(TO_ADDRESS))
-      );
-      dbManager.getAccountAssetIssueStore().put(toAccountAssetIssue.getAddress().toByteArray(), toAccountAssetIssue);
-
       addZeroValueOutputNote(builder);
       builder.setTransparentOutput(ByteArray.fromHexString(TO_ADDRESS), 10_000_000L);
 
       TransactionCapsule transactionCap = builder.build();
 
-      //  0L + 110_000_000L  !=  200_000_000L + 0L + 10_000_000L
+      //   0L + 110_000_000L  !=  200_000_000L + 0L + 10_000_000L
       try {
         executeTx(transactionCap);
         Assert.fail();
@@ -1195,7 +1160,7 @@ public class SendCoinShieldTest {
 
       TransactionCapsule transactionCap = builder.build();
 
-      //  110_000_000L + 0L!=  200_000_000L + 0L + 10_000_000L
+      //   110_000_000L + 0L!=  200_000_000L + 0L + 10_000_000L
       try {
         executeTx(transactionCap);
         Assert.fail();
@@ -1246,7 +1211,7 @@ public class SendCoinShieldTest {
 
       TransactionCapsule transactionCap = builder.build();
 
-      //    0L + 110_000_000L !=  200_000_000L + 10_000_000L + 10_000_000L
+      //     0L + 110_000_000L !=  200_000_000L + 10_000_000L + 10_000_000L
       try {
         executeTx(transactionCap);
         Assert.fail();
@@ -1662,17 +1627,6 @@ public class SendCoinShieldTest {
     AccountCapsule toCapsule = new AccountCapsule(ByteString.copyFromUtf8("to"),
             ByteString.copyFrom(ByteArray.fromHexString(TO_ADDRESS)), AccountType.Normal, 0L);
     dbManager.getAccountStore().put(toCapsule.getAddress().toByteArray(), toCapsule);
-    generateDefaultToAccountAssetIssue();
-    return TO_ADDRESS;
-  }
-
-  private String generateDefaultToAccountAssetIssue() {
-    String TO_ADDRESS =
-            Wallet.getAddressPreFixString() + "b48794500882809695a8a687866e76d4271a1abc";
-    AccountAssetIssueCapsule toCapsule = new AccountAssetIssueCapsule(
-            ByteString.copyFromUtf8("to"),
-            ByteString.copyFrom(ByteArray.fromHexString(TO_ADDRESS)));
-    dbManager.getAccountAssetIssueStore().put(toCapsule.getAddress().toByteArray(), toCapsule);
     return TO_ADDRESS;
   }
 

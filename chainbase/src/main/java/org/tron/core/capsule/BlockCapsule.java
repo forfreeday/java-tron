@@ -71,12 +71,12 @@ public class BlockCapsule implements ProtoCapsule<Block> {
     // block header raw
     BlockHeader.raw.Builder blockHeaderRawBuild = BlockHeader.raw.newBuilder();
     BlockHeader.raw blockHeaderRaw = blockHeaderRawBuild
-        .setNumber(number)
-        .setParentHash(hash.getByteString())
-        .setTimestamp(when)
-        .setVersion(ChainConstant.BLOCK_VERSION)
-        .setWitnessAddress(witnessAddress)
-        .build();
+            .setNumber(number)
+            .setParentHash(hash.getByteString())
+            .setTimestamp(when)
+            .setVersion(ChainConstant.BLOCK_VERSION)
+            .setWitnessAddress(witnessAddress)
+            .build();
 
     // block header
     BlockHeader.Builder blockHeaderBuild = BlockHeader.newBuilder();
@@ -90,14 +90,14 @@ public class BlockCapsule implements ProtoCapsule<Block> {
 
 
   public BlockCapsule(long timestamp, ByteString parentHash, long number,
-      List<Transaction> transactionList) {
+                      List<Transaction> transactionList) {
     // block header raw
     BlockHeader.raw.Builder blockHeaderRawBuild = BlockHeader.raw.newBuilder();
     BlockHeader.raw blockHeaderRaw = blockHeaderRawBuild
-        .setTimestamp(timestamp)
-        .setParentHash(parentHash)
-        .setNumber(number)
-        .build();
+            .setTimestamp(timestamp)
+            .setParentHash(parentHash)
+            .setNumber(number)
+            .build();
 
     // block header
     BlockHeader.Builder blockHeaderBuild = BlockHeader.newBuilder();
@@ -145,19 +145,19 @@ public class BlockCapsule implements ProtoCapsule<Block> {
 
   private void initTxs() {
     transactions = this.block.getTransactionsList().stream()
-        .map(trx -> new TransactionCapsule(trx))
-        .collect(Collectors.toList());
+            .map(trx -> new TransactionCapsule(trx))
+            .collect(Collectors.toList());
   }
 
   // TODO add unit test for sig2.getbytes
   public void sign(byte[] privateKey) {
     SignInterface ecKeyEngine = SignUtils
-        .fromPrivate(privateKey, CommonParameter.getInstance().isECKeyCryptoEngine());
+            .fromPrivate(privateKey, CommonParameter.getInstance().isECKeyCryptoEngine());
 
     ByteString sig = ByteString.copyFrom(ecKeyEngine.Base64toBytes(ecKeyEngine.signHash(getRawHash()
-        .getBytes())));
+            .getBytes())));
     BlockHeader blockHeader = this.block.getBlockHeader().toBuilder().setWitnessSignature(sig)
-        .build();
+            .build();
 
     this.block = this.block.toBuilder().setBlockHeader(blockHeader).build();
 
@@ -165,24 +165,24 @@ public class BlockCapsule implements ProtoCapsule<Block> {
 
   private Sha256Hash getRawHash() {
     return Sha256Hash.of(CommonParameter.getInstance().isECKeyCryptoEngine(),
-        this.block.getBlockHeader().getRawData().toByteArray());
+            this.block.getBlockHeader().getRawData().toByteArray());
   }
 
   public boolean validateSignature(DynamicPropertiesStore dynamicPropertiesStore,
-      AccountStore accountStore) throws ValidateSignatureException {
+                                   AccountStore accountStore) throws ValidateSignatureException {
     try {
       byte[] sigAddress = SignUtils.signatureToAddress(getRawHash().getBytes(),
-          TransactionCapsule.getBase64FromByteString(
-              block.getBlockHeader().getWitnessSignature()),
-          CommonParameter.getInstance().isECKeyCryptoEngine());
+              TransactionCapsule.getBase64FromByteString(
+                      block.getBlockHeader().getWitnessSignature()),
+              CommonParameter.getInstance().isECKeyCryptoEngine());
       byte[] witnessAccountAddress = block.getBlockHeader().getRawData().getWitnessAddress()
-          .toByteArray();
+              .toByteArray();
 
       if (dynamicPropertiesStore.getAllowMultiSign() != 1) {
         return Arrays.equals(sigAddress, witnessAccountAddress);
       } else {
         byte[] witnessPermissionAddress = accountStore.get(witnessAccountAddress)
-            .getWitnessPermissionAddress();
+                .getWitnessPermissionAddress();
         return Arrays.equals(sigAddress, witnessPermissionAddress);
       }
 
@@ -194,8 +194,8 @@ public class BlockCapsule implements ProtoCapsule<Block> {
   public BlockId getBlockId() {
     if (blockId.equals(Sha256Hash.ZERO_HASH)) {
       blockId =
-          new BlockId(Sha256Hash.of(CommonParameter.getInstance().isECKeyCryptoEngine(),
-              this.block.getBlockHeader().getRawData().toByteArray()), getNum());
+              new BlockId(Sha256Hash.of(CommonParameter.getInstance().isECKeyCryptoEngine(),
+                      this.block.getBlockHeader().getRawData().toByteArray()), getNum());
     }
     return blockId;
   }
@@ -208,48 +208,77 @@ public class BlockCapsule implements ProtoCapsule<Block> {
     }
 
     ArrayList<Sha256Hash> ids = transactionsList.stream()
-        .map(TransactionCapsule::new)
-        .map(TransactionCapsule::getMerkleHash)
-        .collect(Collectors.toCollection(ArrayList::new));
+            .map(TransactionCapsule::new)
+            .map(TransactionCapsule::getMerkleHash)
+            .collect(Collectors.toCollection(ArrayList::new));
 
     return MerkleTree.getInstance().createTree(ids).getRoot().getHash();
   }
 
   public void setMerkleRoot() {
     BlockHeader.raw blockHeaderRaw =
-        this.block.getBlockHeader().getRawData().toBuilder()
-            .setTxTrieRoot(calcMerkleRoot().getByteString()).build();
+            this.block.getBlockHeader().getRawData().toBuilder()
+                    .setTxTrieRoot(calcMerkleRoot().getByteString()).build();
 
     this.block = this.block.toBuilder().setBlockHeader(
-        this.block.getBlockHeader().toBuilder().setRawData(blockHeaderRaw)).build();
+            this.block.getBlockHeader().toBuilder().setRawData(blockHeaderRaw)).build();
+  }
+
+  public Sha256Hash calcReceiptsRoot() {
+    List<Transaction> transactionsList = this.block.getTransactionsList();
+
+    if (CollectionUtils.isEmpty(transactionsList)) {
+      return Sha256Hash.ZERO_HASH;
+    }
+
+    ArrayList<Sha256Hash> ids = transactionsList.stream()
+            .map(TransactionCapsule::new)
+            .map(TransactionCapsule::getReceiptsMerkleHash)
+            .collect(Collectors.toCollection(ArrayList::new));
+
+    return MerkleTree.getInstance().createTree(ids).getRoot().getHash();
+  }
+
+  public void setReceiptsRoot() {
+    BlockHeader.raw blockHeaderRaw =
+            this.block.getBlockHeader().getRawData().toBuilder()
+                    .setReceiptsRoot(calcReceiptsRoot().getByteString()).build();
+
+    this.block = this.block.toBuilder().setBlockHeader(
+            this.block.getBlockHeader().toBuilder().setRawData(blockHeaderRaw)).build();
   }
 
   public void setAccountStateRoot(byte[] root) {
     BlockHeader.raw blockHeaderRaw =
-        this.block.getBlockHeader().getRawData().toBuilder()
-            .setAccountStateRoot(ByteString.copyFrom(root)).build();
+            this.block.getBlockHeader().getRawData().toBuilder()
+                    .setAccountStateRoot(ByteString.copyFrom(root)).build();
 
     this.block = this.block.toBuilder().setBlockHeader(
-        this.block.getBlockHeader().toBuilder().setRawData(blockHeaderRaw)).build();
+            this.block.getBlockHeader().toBuilder().setRawData(blockHeaderRaw)).build();
   }
 
   /* only for genesis */
   public void setWitness(String witness) {
     BlockHeader.raw blockHeaderRaw =
-        this.block.getBlockHeader().getRawData().toBuilder().setWitnessAddress(
-            ByteString.copyFrom(witness.getBytes())).build();
+            this.block.getBlockHeader().getRawData().toBuilder().setWitnessAddress(
+                    ByteString.copyFrom(witness.getBytes())).build();
 
     this.block = this.block.toBuilder().setBlockHeader(
-        this.block.getBlockHeader().toBuilder().setRawData(blockHeaderRaw)).build();
+            this.block.getBlockHeader().toBuilder().setRawData(blockHeaderRaw)).build();
   }
 
   public Sha256Hash getMerkleRoot() {
     return Sha256Hash.wrap(this.block.getBlockHeader().getRawData().getTxTrieRoot());
   }
+  public Sha256Hash getReceiptsRoot() {
+    if (this.block.getBlockHeader().getRawData().getReceiptsRoot().isEmpty())
+      return Sha256Hash.ZERO_HASH;
+    return Sha256Hash.wrap(this.block.getBlockHeader().getRawData().getReceiptsRoot());
+  }
 
   public Sha256Hash getAccountRoot() {
     if (this.block.getBlockHeader().getRawData().getAccountStateRoot() != null
-        && !this.block.getBlockHeader().getRawData().getAccountStateRoot().isEmpty()) {
+            && !this.block.getBlockHeader().getRawData().getAccountStateRoot().isEmpty()) {
       return Sha256Hash.wrap(this.block.getBlockHeader().getRawData().getAccountStateRoot());
     }
     return Sha256Hash.ZERO_HASH;
@@ -302,13 +331,14 @@ public class BlockCapsule implements ProtoCapsule<Block> {
     toStringBuff.append("number=").append(getNum()).append("\n");
     toStringBuff.append("parentId=").append(getParentHash()).append("\n");
     toStringBuff.append("witness address=")
-        .append(ByteArray.toHexString(getWitnessAddress().toByteArray())).append("\n");
+            .append(ByteArray.toHexString(getWitnessAddress().toByteArray())).append("\n");
 
     toStringBuff.append("generated by myself=").append(generatedByMyself).append("\n");
     toStringBuff.append("generate time=").append(Time.getTimeString(getTimeStamp())).append("\n");
     toStringBuff.append("account root=").append(getAccountRoot()).append("\n");
     if (!getTransactions().isEmpty()) {
       toStringBuff.append("merkle root=").append(getMerkleRoot()).append("\n");
+      toStringBuff.append("receipt root=").append(getReceiptsRoot()).append("\n");
       toStringBuff.append("txs size=").append(getTransactions().size()).append("\n");
     } else {
       toStringBuff.append("txs are empty\n");

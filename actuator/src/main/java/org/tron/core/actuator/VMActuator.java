@@ -214,6 +214,8 @@ public class VMActuator implements Actuator2 {
           result.getLogInfoList().clear();
           result.resetFutureRefund();
           result.rejectInternalTransactions();
+          result.getDeleteVotes().clear();
+          result.getDeleteDelegation().clear();
 
           if (result.getException() != null) {
             if (!(result.getException() instanceof TransferException)) {
@@ -391,7 +393,6 @@ public class VMActuator implements Actuator2 {
     repository.createAccount(contractAddress, newSmartContract.getName(),
         Protocol.AccountType.Contract);
 
-    repository.createAccountAssetIssue(contractAddress);
     repository.createContract(contractAddress, new ContractCapsule(newSmartContract));
     byte[] code = newSmartContract.getBytecode().toByteArray();
     if (!VMConfig.allowTvmConstantinople()) {

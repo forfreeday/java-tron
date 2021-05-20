@@ -61,7 +61,6 @@ import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.NetConstants;
 import org.tron.core.config.Parameter.NodeConstant;
 import org.tron.core.exception.CipherException;
-import org.tron.core.store.AccountAssetIssueStore;
 import org.tron.core.store.AccountStore;
 import org.tron.keystore.Credentials;
 import org.tron.keystore.WalletUtils;
@@ -361,7 +360,6 @@ public class Args extends CommonParameter {
       if (config.hasPath(Constant.GENESIS_BLOCK_ASSETS)) {
         PARAMETER.genesisBlock.setAssets(getAccountsFromConfig(config));
         AccountStore.setAccount(config);
-        AccountAssetIssueStore.setAccountAssetIssue(config);
       }
       if (config.hasPath(Constant.GENESIS_BLOCK_WITNESSES)) {
         PARAMETER.genesisBlock.setWitnesses(getWitnessesFromConfig(config));
@@ -645,6 +643,10 @@ public class Args extends CommonParameter {
     PARAMETER.allowNewResourceModel =
         config.hasPath(Constant.COMMITTEE_ALLOW_NEW_RESOURCE_MODEL) ? config
             .getInt(Constant.COMMITTEE_ALLOW_NEW_RESOURCE_MODEL) : 0;
+
+    PARAMETER.allowReceiptsMerkleRoot =
+            config.hasPath(Constant.COMMITTEE_ALLOW_RECEIPTS_MERKLE_ROOT) ? config
+                    .getInt(Constant.COMMITTEE_ALLOW_RECEIPTS_MERKLE_ROOT) : 0;
 
     PARAMETER.allowTvmIstanbul =
         config.hasPath(Constant.COMMITTEE_ALLOW_TVM_ISTANBUL) ? config

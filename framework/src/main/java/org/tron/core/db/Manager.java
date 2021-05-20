@@ -118,6 +118,7 @@ import org.tron.core.exception.ZksnarkException;
 import org.tron.core.metrics.MetricsKey;
 import org.tron.core.metrics.MetricsUtil;
 import org.tron.core.service.MortgageService;
+import org.tron.core.store.AccountAssetStore;
 import org.tron.core.store.AccountIdIndexStore;
 import org.tron.core.store.AccountIndexStore;
 import org.tron.core.store.AccountStore;
@@ -959,6 +960,17 @@ public class Manager {
                   + block.getMerkleRoot());
           throw new BadBlockException("The merkle hash is not validated");
         }
+        if (getDynamicPropertiesStore().allowReceiptsMerkleRoot()
+                && !block.calcReceiptsRoot().equals(block.getReceiptsRoot())) {
+          logger.warn(
+                  "The receipts merkle root doesn't match, Calc result is "
+                          + block.calcMerkleRoot()
+                          + " , the headers is "
+                          + block.getMerkleRoot());
+          throw new BadBlockException("The receipt merkle hash is not validated");
+        }
+
+
         consensus.receiveBlock(block);
       }
 
@@ -1331,6 +1343,9 @@ public class Manager {
         pendingTransactions.size(), rePushTransactions.size(), postponedTrxCount);
 
     blockCapsule.setMerkleRoot();
+    if (getDynamicPropertiesStore().allowReceiptsMerkleRoot()) {
+      blockCapsule.setReceiptsRoot();
+    }
     blockCapsule.sign(miner.getPrivateKey());
 
     return blockCapsule;

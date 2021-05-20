@@ -14,7 +14,6 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
 import org.tron.common.utils.DecodeUtil;
 import org.tron.common.utils.StringUtil;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.ExchangeCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
@@ -26,7 +25,7 @@ import org.tron.core.store.AssetIssueStore;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.core.store.ExchangeStore;
 import org.tron.core.store.ExchangeV2Store;
-import org.tron.core.store.AccountAssetIssueStore;
+import org.tron.core.utils.TransactionUtil;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result.code;
 import org.tron.protos.contract.ExchangeContract.ExchangeWithdrawContract;
@@ -47,24 +46,19 @@ public class ExchangeWithdrawActuator extends AbstractActuator {
 
     long fee = calcFee();
     AccountStore accountStore = chainBaseManager.getAccountStore();
-    AccountAssetIssueStore accountAssetIssueStore = chainBaseManager.getAccountAssetIssueStore();
-
     DynamicPropertiesStore dynamicStore = chainBaseManager.getDynamicPropertiesStore();
     ExchangeStore exchangeStore = chainBaseManager.getExchangeStore();
     ExchangeV2Store exchangeV2Store = chainBaseManager.getExchangeV2Store();
     AssetIssueStore assetIssueStore = chainBaseManager.getAssetIssueStore();
     try {
       final ExchangeWithdrawContract exchangeWithdrawContract = this.any
-          .unpack(ExchangeWithdrawContract.class);
-      byte[] address = exchangeWithdrawContract.getOwnerAddress().toByteArray();
+              .unpack(ExchangeWithdrawContract.class);
       AccountCapsule accountCapsule = accountStore
-          .get(address);
-
-      AccountAssetIssueCapsule accountAssetIssueCapsule = accountAssetIssueStore.get(address);
+              .get(exchangeWithdrawContract.getOwnerAddress().toByteArray());
 
       ExchangeCapsule exchangeCapsule = Commons
-          .getExchangeStoreFinal(dynamicStore, exchangeStore, exchangeV2Store).
-              get(ByteArray.fromLong(exchangeWithdrawContract.getExchangeId()));
+              .getExchangeStoreFinal(dynamicStore, exchangeStore, exchangeV2Store).
+                      get(ByteArray.fromLong(exchangeWithdrawContract.getExchangeId()));
 
       byte[] firstTokenID = exchangeCapsule.getFirstTokenId();
       byte[] secondTokenID = exchangeCapsule.getSecondTokenId();
@@ -85,17 +79,17 @@ public class ExchangeWithdrawActuator extends AbstractActuator {
 //        anotherTokenQuant = Math
 //            .floorDiv(Math.multiplyExact(secondTokenBalance, tokenQuant), firstTokenBalance);
         anotherTokenQuant = bigSecondTokenBalance.multiply(bigTokenQuant)
-            .divide(bigFirstTokenBalance).longValueExact();
+                .divide(bigFirstTokenBalance).longValueExact();
         exchangeCapsule.setBalance(firstTokenBalance - tokenQuant,
-            secondTokenBalance - anotherTokenQuant);
+                secondTokenBalance - anotherTokenQuant);
       } else {
         anotherTokenID = firstTokenID;
 //        anotherTokenQuant = Math
 //            .floorDiv(Math.multiplyExact(firstTokenBalance, tokenQuant), secondTokenBalance);
         anotherTokenQuant = bigFirstTokenBalance.multiply(bigTokenQuant)
-            .divide(bigSecondTokenBalance).longValueExact();
+                .divide(bigSecondTokenBalance).longValueExact();
         exchangeCapsule.setBalance(firstTokenBalance - anotherTokenQuant,
-            secondTokenBalance - tokenQuant);
+                secondTokenBalance - tokenQuant);
       }
 
       long newBalance = accountCapsule.getBalance() - calcFee();
@@ -103,21 +97,20 @@ public class ExchangeWithdrawActuator extends AbstractActuator {
       if (Arrays.equals(tokenID, TRX_SYMBOL_BYTES)) {
         accountCapsule.setBalance(newBalance + tokenQuant);
       } else {
-        accountAssetIssueCapsule.addAssetAmountV2(tokenID, tokenQuant, dynamicStore, assetIssueStore);
+        accountCapsule.addAssetAmountV2(tokenID, tokenQuant, dynamicStore, assetIssueStore);
       }
 
       if (Arrays.equals(anotherTokenID, TRX_SYMBOL_BYTES)) {
         accountCapsule.setBalance(newBalance + anotherTokenQuant);
       } else {
-        accountAssetIssueCapsule
-            .addAssetAmountV2(anotherTokenID, anotherTokenQuant, dynamicStore, assetIssueStore);
+        accountCapsule
+                .addAssetAmountV2(anotherTokenID, anotherTokenQuant, dynamicStore, assetIssueStore);
       }
 
-      byte[] accountAddress = accountCapsule.createDbKey();
-      accountStore.put(accountAddress, accountCapsule);
-      accountAssetIssueStore.put(accountAddress, accountAssetIssueCapsule);
+      accountStore.put(accountCapsule.createDbKey(), accountCapsule);
+
       Commons.putExchangeCapsule(exchangeCapsule, dynamicStore, exchangeStore, exchangeV2Store,
-          assetIssueStore);
+              assetIssueStore);
 
       ret.setExchangeWithdrawAnotherAmount(anotherTokenQuant);
       ret.setStatus(fee, code.SUCESS);
@@ -144,8 +137,8 @@ public class ExchangeWithdrawActuator extends AbstractActuator {
     ExchangeV2Store exchangeV2Store = chainBaseManager.getExchangeV2Store();
     if (!this.any.is(ExchangeWithdrawContract.class)) {
       throw new ContractValidateException(
-          "contract type error,expected type [ExchangeWithdrawContract],real type[" + any
-              .getClass() + "]");
+              "contract type error,expected type [ExchangeWithdrawContract],real type[" + any
+                      .getClass() + "]");
     }
     final ExchangeWithdrawContract contract;
     try {
@@ -174,10 +167,10 @@ public class ExchangeWithdrawActuator extends AbstractActuator {
     ExchangeCapsule exchangeCapsule;
     try {
       exchangeCapsule = Commons.getExchangeStoreFinal(dynamicStore, exchangeStore, exchangeV2Store).
-          get(ByteArray.fromLong(contract.getExchangeId()));
+              get(ByteArray.fromLong(contract.getExchangeId()));
     } catch (ItemNotFoundException ex) {
       throw new ContractValidateException("Exchange[" + contract.getExchangeId() + ActuatorConstant
-          .NOT_EXIST_STR);
+              .NOT_EXIST_STR);
     }
 
     if (!accountCapsule.getAddress().equals(exchangeCapsule.getCreatorAddress())) {
@@ -195,8 +188,8 @@ public class ExchangeWithdrawActuator extends AbstractActuator {
     long anotherTokenQuant;
 
     if (dynamicStore.getAllowSameTokenName() == 1 &&
-        !Arrays.equals(tokenID, TRX_SYMBOL_BYTES) &&
-        !isNumber(tokenID)) {
+            !Arrays.equals(tokenID, TRX_SYMBOL_BYTES) &&
+            !isNumber(tokenID)) {
       throw new ContractValidateException("token id is not a valid number");
     }
 
@@ -210,7 +203,7 @@ public class ExchangeWithdrawActuator extends AbstractActuator {
 
     if (firstTokenBalance == 0 || secondTokenBalance == 0) {
       throw new ContractValidateException("Token balance in exchange is equal with 0,"
-          + "the exchange has been closed");
+              + "the exchange has been closed");
     }
 
     BigDecimal bigFirstTokenBalance = new BigDecimal(String.valueOf(firstTokenBalance));
@@ -220,7 +213,7 @@ public class ExchangeWithdrawActuator extends AbstractActuator {
 //      anotherTokenQuant = Math
 //          .floorDiv(Math.multiplyExact(secondTokenBalance, tokenQuant), firstTokenBalance);
       anotherTokenQuant = bigSecondTokenBalance.multiply(bigTokenQuant)
-          .divideToIntegralValue(bigFirstTokenBalance).longValueExact();
+              .divideToIntegralValue(bigFirstTokenBalance).longValueExact();
       if (firstTokenBalance < tokenQuant || secondTokenBalance < anotherTokenQuant) {
         throw new ContractValidateException("exchange balance is not enough");
       }
@@ -230,8 +223,8 @@ public class ExchangeWithdrawActuator extends AbstractActuator {
       }
 
       double remainder = bigSecondTokenBalance.multiply(bigTokenQuant)
-          .divide(bigFirstTokenBalance, 4, BigDecimal.ROUND_HALF_UP).doubleValue()
-          - anotherTokenQuant;
+              .divide(bigFirstTokenBalance, 4, BigDecimal.ROUND_HALF_UP).doubleValue()
+              - anotherTokenQuant;
       if (remainder / anotherTokenQuant > 0.0001) {
         throw new ContractValidateException("Not precise enough");
       }
@@ -240,7 +233,7 @@ public class ExchangeWithdrawActuator extends AbstractActuator {
 //      anotherTokenQuant = Math
 //          .floorDiv(Math.multiplyExact(firstTokenBalance, tokenQuant), secondTokenBalance);
       anotherTokenQuant = bigFirstTokenBalance.multiply(bigTokenQuant)
-          .divideToIntegralValue(bigSecondTokenBalance).longValueExact();
+              .divideToIntegralValue(bigSecondTokenBalance).longValueExact();
       if (secondTokenBalance < tokenQuant || firstTokenBalance < anotherTokenQuant) {
         throw new ContractValidateException("exchange balance is not enough");
       }
@@ -250,8 +243,8 @@ public class ExchangeWithdrawActuator extends AbstractActuator {
       }
 
       double remainder = bigFirstTokenBalance.multiply(bigTokenQuant)
-          .divide(bigSecondTokenBalance, 4, BigDecimal.ROUND_HALF_UP).doubleValue()
-          - anotherTokenQuant;
+              .divide(bigSecondTokenBalance, 4, BigDecimal.ROUND_HALF_UP).doubleValue()
+              - anotherTokenQuant;
       if (remainder / anotherTokenQuant > 0.0001) {
         throw new ContractValidateException("Not precise enough");
       }

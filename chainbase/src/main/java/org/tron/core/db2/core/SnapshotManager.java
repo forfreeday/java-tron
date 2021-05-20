@@ -118,7 +118,7 @@ public class SnapshotManager implements RevokingDatabase {
     dbs.add(revokingDB);
     //线程池,guava 工具
     flushServices.put(revokingDB.getDbName(),
-            MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor()));
+        MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor()));
   }
 
   private void advance() {
@@ -295,9 +295,9 @@ public class SnapshotManager implements RevokingDatabase {
       refresh();
       flushCount = 0;
       logger.info("flush cost:{}, create checkpoint cost:{}, refresh cost:{}",
-              System.currentTimeMillis() - start,
-              checkPointEnd - start,
-              System.currentTimeMillis() - checkPointEnd
+          System.currentTimeMillis() - start,
+          checkPointEnd - start,
+          System.currentTimeMillis() - checkPointEnd
       );
     }
   }
@@ -320,16 +320,16 @@ public class SnapshotManager implements RevokingDatabase {
           Key k = e.getKey();
           Value v = e.getValue();
           batch.put(WrappedByteArray.of(Bytes.concat(simpleEncode(dbName), k.getBytes())),
-                  WrappedByteArray.of(v.encode()));
+              WrappedByteArray.of(v.encode()));
         }
       }
     }
 
     checkTmpStore.getDbSource().updateByBatch(batch.entrySet().stream()
-                    .map(e -> Maps.immutableEntry(e.getKey().getBytes(), e.getValue().getBytes()))
-                    .collect(HashMap::new, (m, k) -> m.put(k.getKey(), k.getValue()), HashMap::putAll),
-            WriteOptionsWrapper.getInstance().sync(CommonParameter
-                    .getInstance().getStorage().isDbSync()));
+            .map(e -> Maps.immutableEntry(e.getKey().getBytes(), e.getValue().getBytes()))
+            .collect(HashMap::new, (m, k) -> m.put(k.getKey(), k.getValue()), HashMap::putAll),
+        WriteOptionsWrapper.getInstance().sync(CommonParameter
+            .getInstance().getStorage().isDbSync()));
   }
 
   private void deleteCheckpoint() {
@@ -354,8 +354,8 @@ public class SnapshotManager implements RevokingDatabase {
 
     if (!checkTmpStore.getDbSource().allKeys().isEmpty()) {
       Map<String, Chainbase> dbMap = dbs.stream()
-              .map(db -> Maps.immutableEntry(db.getDbName(), db))
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+          .map(db -> Maps.immutableEntry(db.getDbName(), db))
+          .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
       advance();
       for (Map.Entry<byte[], byte[]> e : checkTmpStore.getDbSource()) {
         byte[] key = e.getKey();

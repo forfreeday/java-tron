@@ -520,7 +520,7 @@ public class Program {
     increaseNonce();
 
     addInternalTx(null, owner, obtainer, balance, null, "suicide", nonce,
-        getContractState().getAccountAssetIssue(owner).getAssetMapV2());
+        getContractState().getAccount(owner).getAssetMapV2());
 
     if (FastByteComparisons.compareTo(owner, 0, 20, obtainer, 0, 20) == 0) {
       // if owner == obtainer just zeroing account according to Yellow Paper
@@ -532,6 +532,11 @@ public class Program {
       }
     } else {
       createAccountIfNotExist(getContractState(), obtainer);
+      AccountCapsule accountCapsule = getContractState().getAccount(obtainer);
+      if (getContractState().getDynamicPropertiesStore().supportAllowNewResourceModel()
+          && accountCapsule.oldTronPowerIsNotInitialized()) {
+        accountCapsule.initializeOldTronPower();
+      }
       try {
         MUtil.transfer(getContractState(), owner, obtainer, balance);
         if (VMConfig.allowTvmTransferTrc10()) {
@@ -552,6 +557,7 @@ public class Program {
       } else {
         transferDelegatedResourceToInheritor(owner, obtainer, getContractState());
       }
+      getResult().addDeleteDelegation(this.getContractAddress());
     }
     getResult().addDeleteAccount(this.getContractAddress());
   }
@@ -643,13 +649,6 @@ public class Program {
         existingAccount.updateAccountType(AccountType.Contract);
         existingAccount.clearDelegatedResource();
         deposit.updateAccount(newAddress, existingAccount);
-      }
-
-      AccountAssetIssueCapsule accountAssetIssue = getContractState().getAccountAssetIssue(newAddress);
-      if (accountAssetIssue == null) {
-        deposit.createAccountAssetIssue(newAddress);
-      } else {
-        deposit.updateAccountAssetIssue(newAddress, accountAssetIssue);
       }
 
       if (!contractAlreadyExists) {
@@ -1620,10 +1619,6 @@ public class Program {
       if (sender == null) {
         deposit.createNormalAccount(contextAddress);
       }
-      AccountAssetIssueCapsule accountAssetIssue = deposit.getAccountAssetIssue(contextAddress);
-      if (accountAssetIssue == null) {
-        deposit.createAccountAssetIssue(contextAddress);
-      }
     }
   }
 
@@ -1726,7 +1721,8 @@ public class Program {
     byte[] owner = TransactionTrace.convertToTronAddress(getContractAddress().getLast20Bytes());
     byte[] target = TransactionTrace.convertToTronAddress(targetAddress.getLast20Bytes());
     int resourceCode = resourceType.intValue();
-    if (FastByteComparisons.isEqual(owner, target)) {
+    // when targetAddress is all-zero or owner, lookup freeze expire time for owner
+    if (targetAddress.isZero() || FastByteComparisons.isEqual(owner, target)) {
       AccountCapsule ownerCapsule = getContractState().getAccount(owner);
       if (resourceCode == 0) { //  for bandwidth
         if (ownerCapsule.getFrozenCount() != 0

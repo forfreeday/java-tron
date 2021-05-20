@@ -26,7 +26,6 @@ import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.utils.Commons;
 import org.tron.common.utils.DecodeUtil;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.AssetIssueCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
@@ -37,9 +36,8 @@ import org.tron.core.store.AccountStore;
 import org.tron.core.store.AssetIssueStore;
 import org.tron.core.store.AssetIssueV2Store;
 import org.tron.core.store.DynamicPropertiesStore;
-import org.tron.core.store.AccountAssetIssueStore;
 import org.tron.core.utils.TransactionUtil;
-import org.tron.protos.Protocol.AccountAssetIssue.Frozen;
+import org.tron.protos.Protocol.Account.Frozen;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result.code;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
@@ -64,7 +62,6 @@ public class AssetIssueActuator extends AbstractActuator {
     AssetIssueStore assetIssueStore = chainBaseManager.getAssetIssueStore();
     AssetIssueV2Store assetIssueV2Store = chainBaseManager.getAssetIssueV2Store();
     AccountStore accountStore = chainBaseManager.getAccountStore();
-    AccountAssetIssueStore accountAssetIssueStore = chainBaseManager.getAccountAssetIssueStore();
     try {
       AssetIssueContract assetIssueContract = any.unpack(AssetIssueContract.class);
       byte[] ownerAddress = assetIssueContract.getOwnerAddress().toByteArray();
@@ -79,12 +76,12 @@ public class AssetIssueActuator extends AbstractActuator {
       if (dynamicStore.getAllowSameTokenName() == 0) {
         assetIssueCapsuleV2.setPrecision(0);
         assetIssueStore
-            .put(assetIssueCapsule.createDbKey(), assetIssueCapsule);
+                .put(assetIssueCapsule.createDbKey(), assetIssueCapsule);
         assetIssueV2Store
-            .put(assetIssueCapsuleV2.createDbV2Key(), assetIssueCapsuleV2);
+                .put(assetIssueCapsuleV2.createDbV2Key(), assetIssueCapsuleV2);
       } else {
         assetIssueV2Store
-            .put(assetIssueCapsuleV2.createDbV2Key(), assetIssueCapsuleV2);
+                .put(assetIssueCapsuleV2.createDbV2Key(), assetIssueCapsuleV2);
       }
 
       Commons.adjustBalance(accountStore, ownerAddress, -fee);
@@ -93,7 +90,7 @@ public class AssetIssueActuator extends AbstractActuator {
       } else {
         Commons.adjustBalance(accountStore, accountStore.getBlackhole(), fee);//send to blackhole
       }
-      AccountAssetIssueCapsule accountAssetIssueCapsule = accountAssetIssueStore.get(ownerAddress);
+      AccountCapsule accountCapsule = accountStore.get(ownerAddress);
       List<FrozenSupply> frozenSupplyList = assetIssueContract.getFrozenSupplyList();
       Iterator<FrozenSupply> iterator = frozenSupplyList.iterator();
       long remainSupply = assetIssueContract.getTotalSupply();
@@ -104,23 +101,23 @@ public class AssetIssueActuator extends AbstractActuator {
         FrozenSupply next = iterator.next();
         long expireTime = startTime + next.getFrozenDays() * FROZEN_PERIOD;
         Frozen newFrozen = Frozen.newBuilder()
-            .setFrozenBalance(next.getFrozenAmount())
-            .setExpireTime(expireTime)
-            .build();
+                .setFrozenBalance(next.getFrozenAmount())
+                .setExpireTime(expireTime)
+                .build();
         frozenList.add(newFrozen);
         remainSupply -= next.getFrozenAmount();
       }
 
       if (dynamicStore.getAllowSameTokenName() == 0) {
-        accountAssetIssueCapsule.addAsset(assetIssueCapsule.createDbKey(), remainSupply);
+        accountCapsule.addAsset(assetIssueCapsule.createDbKey(), remainSupply);
       }
-      accountAssetIssueCapsule.setAssetIssuedName(assetIssueCapsule.createDbKey());
-      accountAssetIssueCapsule.setAssetIssuedID(assetIssueCapsule.createDbV2Key());
-      accountAssetIssueCapsule.addAssetV2(assetIssueCapsuleV2.createDbV2Key(), remainSupply);
-      accountAssetIssueCapsule.setInstance(accountAssetIssueCapsule.getInstance().toBuilder()
-          .addAllFrozenSupply(frozenList).build());
+      accountCapsule.setAssetIssuedName(assetIssueCapsule.createDbKey());
+      accountCapsule.setAssetIssuedID(assetIssueCapsule.createDbV2Key());
+      accountCapsule.addAssetV2(assetIssueCapsuleV2.createDbV2Key(), remainSupply);
+      accountCapsule.setInstance(accountCapsule.getInstance().toBuilder()
+              .addAllFrozenSupply(frozenList).build());
 
-      accountAssetIssueStore.put(ownerAddress, accountAssetIssueCapsule);
+      accountStore.put(ownerAddress, accountCapsule);
 
       ret.setAssetIssueID(Long.toString(tokenIdNum));
       ret.setStatus(fee, code.SUCESS);
@@ -144,11 +141,10 @@ public class AssetIssueActuator extends AbstractActuator {
     DynamicPropertiesStore dynamicStore = chainBaseManager.getDynamicPropertiesStore();
     AssetIssueStore assetIssueStore = chainBaseManager.getAssetIssueStore();
     AccountStore accountStore = chainBaseManager.getAccountStore();
-    AccountAssetIssueStore accountAssetIssueStore = chainBaseManager.getAccountAssetIssueStore();
     if (!this.any.is(AssetIssueContract.class)) {
       throw new ContractValidateException(
-          "contract type error,expected type [AssetIssueContract],real type[" + any
-              .getClass() + "]");
+              "contract type error,expected type [AssetIssueContract],real type[" + any
+                      .getClass() + "]");
     }
 
     final AssetIssueContract assetIssueContract;
@@ -177,13 +173,13 @@ public class AssetIssueActuator extends AbstractActuator {
 
     int precision = assetIssueContract.getPrecision();
     if (precision != 0
-        && dynamicStore.getAllowSameTokenName() != 0
-        && (precision < 0 || precision > ActuatorConstant.PRECISION_DECIMAL)) {
+            && dynamicStore.getAllowSameTokenName() != 0
+            && (precision < 0 || precision > ActuatorConstant.PRECISION_DECIMAL)) {
       throw new ContractValidateException("precision cannot exceed 6");
     }
 
     if ((!assetIssueContract.getAbbr().isEmpty()) && !TransactionUtil
-        .validAssetName(assetIssueContract.getAbbr().toByteArray())) {
+            .validAssetName(assetIssueContract.getAbbr().toByteArray())) {
       throw new ContractValidateException("Invalid abbreviation for token");
     }
 
@@ -192,7 +188,7 @@ public class AssetIssueActuator extends AbstractActuator {
     }
 
     if (!TransactionUtil
-        .validAssetDescription(assetIssueContract.getDescription().toByteArray())) {
+            .validAssetDescription(assetIssueContract.getDescription().toByteArray())) {
       throw new ContractValidateException("Invalid description");
     }
 
@@ -210,8 +206,8 @@ public class AssetIssueActuator extends AbstractActuator {
     }
 
     if (dynamicStore.getAllowSameTokenName() == 0
-        && assetIssueStore.get(assetIssueContract.getName().toByteArray())
-        != null) {
+            && assetIssueStore.get(assetIssueContract.getName().toByteArray())
+            != null) {
       throw new ContractValidateException("Token exists");
     }
 
@@ -232,19 +228,19 @@ public class AssetIssueActuator extends AbstractActuator {
     }
 
     if (assetIssueContract.getFrozenSupplyCount()
-        > dynamicStore.getMaxFrozenSupplyNumber()) {
+            > dynamicStore.getMaxFrozenSupplyNumber()) {
       throw new ContractValidateException("Frozen supply list length is too long");
     }
 
     if (assetIssueContract.getFreeAssetNetLimit() < 0
-        || assetIssueContract.getFreeAssetNetLimit() >=
-        dynamicStore.getOneDayNetLimit()) {
+            || assetIssueContract.getFreeAssetNetLimit() >=
+            dynamicStore.getOneDayNetLimit()) {
       throw new ContractValidateException("Invalid FreeAssetNetLimit");
     }
 
     if (assetIssueContract.getPublicFreeAssetNetLimit() < 0
-        || assetIssueContract.getPublicFreeAssetNetLimit() >=
-        dynamicStore.getOneDayNetLimit()) {
+            || assetIssueContract.getPublicFreeAssetNetLimit() >=
+            dynamicStore.getOneDayNetLimit()) {
       throw new ContractValidateException("Invalid PublicFreeAssetNetLimit");
     }
 
@@ -276,8 +272,7 @@ public class AssetIssueActuator extends AbstractActuator {
       throw new ContractValidateException("Account not exists");
     }
 
-    AccountAssetIssueCapsule accountAssetIssueCapsule = accountAssetIssueStore.get(ownerAddress);
-    if (!accountAssetIssueCapsule.getAssetIssuedName().isEmpty()) {
+    if (!accountCapsule.getAssetIssuedName().isEmpty()) {
       throw new ContractValidateException("An account can only issue one asset");
     }
 

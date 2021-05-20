@@ -45,6 +45,10 @@ public class BN128G1 extends BN128Fp {
       return null;
     }
 
+    if (!isGroupMember(p)) {
+      return null;
+    }
+
     return new BN128G1(p);
   }
 

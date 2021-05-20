@@ -133,7 +133,7 @@ public class AssetUpdateHelperTest {
         }
 
         {
-            assetUpdateHelper.updateAccountAssetIssue();
+            assetUpdateHelper.updateAccount();
 
             AccountCapsule accountCapsule =
                     chainBaseManager.getAccountStore().get(ByteArray.fromHexString("121212abc"));

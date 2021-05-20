@@ -29,7 +29,6 @@ import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.MarketOrderCapsule;
 import org.tron.core.capsule.MarketOrderIdListCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.core.capsule.utils.MarketUtils;
 import org.tron.core.exception.BalanceInsufficientException;
 import org.tron.core.exception.ContractExeException;
@@ -42,7 +41,6 @@ import org.tron.core.store.MarketAccountStore;
 import org.tron.core.store.MarketOrderStore;
 import org.tron.core.store.MarketPairPriceToOrderStore;
 import org.tron.core.store.MarketPairToPriceStore;
-import org.tron.core.store.AccountAssetIssueStore;
 import org.tron.protos.Protocol.MarketOrder.State;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result.code;
@@ -53,8 +51,6 @@ import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
 public class MarketCancelOrderActuator extends AbstractActuator {
 
   private AccountStore accountStore;
-  private AccountAssetIssueStore accountAssetIssueStore;
-
   private DynamicPropertiesStore dynamicStore;
   private AssetIssueStore assetIssueStore;
 
@@ -69,8 +65,6 @@ public class MarketCancelOrderActuator extends AbstractActuator {
 
   private void initStores() {
     accountStore = chainBaseManager.getAccountStore();
-    accountAssetIssueStore = chainBaseManager.getAccountAssetIssueStore();
-
     dynamicStore = chainBaseManager.getDynamicPropertiesStore();
     assetIssueStore = chainBaseManager.getAssetIssueStore();
 
@@ -93,14 +87,10 @@ public class MarketCancelOrderActuator extends AbstractActuator {
 
     try {
       final MarketCancelOrderContract contract = this.any
-          .unpack(MarketCancelOrderContract.class);
+              .unpack(MarketCancelOrderContract.class);
 
-      byte[] address = contract.getOwnerAddress().toByteArray();
       AccountCapsule accountCapsule = accountStore
-          .get(address);
-
-      AccountAssetIssueCapsule accountAssetIssueCapsule = accountAssetIssueStore
-              .get(address);
+              .get(contract.getOwnerAddress().toByteArray());
 
       byte[] orderId = contract.getOrderId().toByteArray();
       MarketOrderCapsule orderCapsule = orderStore.get(orderId);
@@ -113,19 +103,19 @@ public class MarketCancelOrderActuator extends AbstractActuator {
         Commons.adjustBalance(accountStore, accountStore.getBlackhole(), fee);
       }
       // 1. return balance and token
-      MarketUtils.returnSellTokenRemain(orderCapsule, accountCapsule, dynamicStore, assetIssueStore, accountAssetIssueCapsule);
+      MarketUtils
+              .returnSellTokenRemain(orderCapsule, accountCapsule, dynamicStore, assetIssueStore);
 
       MarketUtils.updateOrderState(orderCapsule, State.CANCELED, marketAccountStore);
-      byte[] accountAddress = orderCapsule.getOwnerAddress().toByteArray();
-      accountStore.put(accountAddress, accountCapsule);
+      accountStore.put(orderCapsule.getOwnerAddress().toByteArray(), accountCapsule);
       orderStore.put(orderCapsule.getID().toByteArray(), orderCapsule);
-      accountAssetIssueStore.put(accountAddress, accountAssetIssueCapsule);
+
       // 2. clear orderList
       byte[] pairPriceKey = MarketUtils.createPairPriceKey(
-          orderCapsule.getSellTokenId(),
-          orderCapsule.getBuyTokenId(),
-          orderCapsule.getSellTokenQuantity(),
-          orderCapsule.getBuyTokenQuantity()
+              orderCapsule.getSellTokenId(),
+              orderCapsule.getBuyTokenId(),
+              orderCapsule.getSellTokenQuantity(),
+              orderCapsule.getBuyTokenQuantity()
       );
       MarketOrderIdListCapsule orderIdListCapsule = pairPriceToOrderStore.get(pairPriceKey);
 
@@ -140,7 +130,7 @@ public class MarketCancelOrderActuator extends AbstractActuator {
         // decrease price number
         // if empty, delete token pair
         byte[] makerPair = MarketUtils
-            .createPairKey(orderCapsule.getSellTokenId(), orderCapsule.getBuyTokenId());
+                .createPairKey(orderCapsule.getSellTokenId(), orderCapsule.getBuyTokenId());
         long remainCount = pairToPriceStore.getPriceNum(makerPair) - 1;
         if (remainCount == 0) {
           pairToPriceStore.delete(makerPair);
@@ -151,8 +141,8 @@ public class MarketCancelOrderActuator extends AbstractActuator {
 
       ret.setStatus(fee, code.SUCESS);
     } catch (ItemNotFoundException
-        | InvalidProtocolBufferException
-        | BalanceInsufficientException e) {
+            | InvalidProtocolBufferException
+            | BalanceInsufficientException e) {
       logger.debug(e.getMessage(), e);
       ret.setStatus(fee, code.FAILED);
       throw new ContractExeException(e.getMessage());
@@ -173,19 +163,19 @@ public class MarketCancelOrderActuator extends AbstractActuator {
 
     if (!this.any.is(MarketCancelOrderContract.class)) {
       throw new ContractValidateException(
-          "contract type error,expected type [MarketCancelOrderContract],real type[" + any
-              .getClass() + "]");
+              "contract type error,expected type [MarketCancelOrderContract],real type[" + any
+                      .getClass() + "]");
     }
 
     if (!dynamicStore.supportAllowMarketTransaction()) {
       throw new ContractValidateException("Not support Market Transaction, need to be opened by"
-          + " the committee");
+              + " the committee");
     }
 
     final MarketCancelOrderContract contract;
     try {
       contract =
-          this.any.unpack(MarketCancelOrderContract.class);
+              this.any.unpack(MarketCancelOrderContract.class);
     } catch (InvalidProtocolBufferException e) {
       logger.debug(e.getMessage(), e);
       throw new ContractValidateException(e.getMessage());
@@ -210,7 +200,7 @@ public class MarketCancelOrderActuator extends AbstractActuator {
       marketOrderCapsule = orderStore.get(orderId.toByteArray());
     } catch (ItemNotFoundException ex) {
       throw new ContractValidateException(
-          "orderId not exists");
+              "orderId not exists");
     }
 
     if (!marketOrderCapsule.isActive()) {

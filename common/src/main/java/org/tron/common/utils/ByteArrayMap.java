@@ -159,10 +159,7 @@ public class ByteArrayMap<V> implements Map<byte[], V> {
             throw new NoSuchElementException();
           }
           Entry<ByteArrayWrapper, V> next = it.next();
-          if (next != null) {
-            return Maps.immutableEntry(next.getKey().getData(), next.getValue());
-          }
-          return null;
+          return Maps.immutableEntry(next.getKey().getData(), next.getValue());
         }
 
         @Override

@@ -20,7 +20,6 @@ import org.tron.common.utils.FileUtil;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.AssetIssueCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
@@ -57,9 +56,9 @@ public class UpdateAssetActuatorTest {
     AppT = ApplicationFactory.create(context);
     OWNER_ADDRESS = Wallet.getAddressPreFixString() + "abd4b9367799eaa3197fecb144eb71de1e049abc";
     OWNER_ADDRESS_NOTEXIST =
-        Wallet.getAddressPreFixString() + "548794500882809695a8a687866e76d4271a1abc";
+            Wallet.getAddressPreFixString() + "548794500882809695a8a687866e76d4271a1abc";
     SECOND_ACCOUNT_ADDRESS =
-        Wallet.getAddressPreFixString() + "548794500882809695a8a687866e76d427122222";
+            Wallet.getAddressPreFixString() + "548794500882809695a8a687866e76d427122222";
   }
 
   /**
@@ -91,34 +90,26 @@ public class UpdateAssetActuatorTest {
   public void createCapsule() {
     // address in accountStore not the owner of contract
     AccountCapsule secondAccount =
-        new AccountCapsule(
-            ByteString.copyFrom(ByteArray.fromHexString(SECOND_ACCOUNT_ADDRESS)),
-            ByteString.copyFromUtf8(OWNER_ADDRESS_ACCOUNT_NAME),
-            Protocol.AccountType.Normal);
-
-    AccountAssetIssueCapsule secondAccountAssetIssue =
-            new AccountAssetIssueCapsule(
-                    ByteString.copyFrom(ByteArray.fromHexString(SECOND_ACCOUNT_ADDRESS))
-            );
-
+            new AccountCapsule(
+                    ByteString.copyFrom(ByteArray.fromHexString(SECOND_ACCOUNT_ADDRESS)),
+                    ByteString.copyFromUtf8(OWNER_ADDRESS_ACCOUNT_NAME),
+                    Protocol.AccountType.Normal);
     dbManager.getAccountStore().put(ByteArray.fromHexString(SECOND_ACCOUNT_ADDRESS), secondAccount);
-    dbManager.getAccountAssetIssueStore().put(ByteArray.fromHexString(SECOND_ACCOUNT_ADDRESS), secondAccountAssetIssue);
 
     // address does not exist in accountStore
     dbManager.getAccountStore().delete(ByteArray.fromHexString(OWNER_ADDRESS_NOTEXIST));
-    dbManager.getAccountAssetIssueStore().delete(ByteArray.fromHexString(OWNER_ADDRESS_NOTEXIST));
   }
 
   private Any getContract(
-      String accountAddress, String description, String url, long newLimit, long newPublicLimit) {
+          String accountAddress, String description, String url, long newLimit, long newPublicLimit) {
     return Any.pack(
-        UpdateAssetContract.newBuilder()
-            .setOwnerAddress(StringUtil.hexString2ByteString(accountAddress))
-            .setDescription(ByteString.copyFromUtf8(description))
-            .setUrl(ByteString.copyFromUtf8(url))
-            .setNewLimit(newLimit)
-            .setNewPublicLimit(newPublicLimit)
-            .build());
+            UpdateAssetContract.newBuilder()
+                    .setOwnerAddress(StringUtil.hexString2ByteString(accountAddress))
+                    .setDescription(ByteString.copyFromUtf8(description))
+                    .setUrl(ByteString.copyFromUtf8(url))
+                    .setNewLimit(newLimit)
+                    .setNewPublicLimit(newPublicLimit)
+                    .build());
   }
 
   private AssetIssueContract getAssetIssueContract() {
@@ -127,18 +118,18 @@ public class UpdateAssetActuatorTest {
 
     long nowTime = new Date().getTime();
     return AssetIssueContract.newBuilder()
-        .setOwnerAddress(ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS)))
-        .setName(ByteString.copyFromUtf8(NAME))
-        .setTotalSupply(TOTAL_SUPPLY)
-        .setId(String.valueOf(tokenId))
-        .setTrxNum(100)
-        .setNum(10)
-        .setStartTime(nowTime)
-        .setEndTime(nowTime + 24 * 3600 * 1000)
-        .setOrder(0)
-        .setDescription(ByteString.copyFromUtf8("assetTest"))
-        .setUrl(ByteString.copyFromUtf8("tron.test.com"))
-        .build();
+            .setOwnerAddress(ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS)))
+            .setName(ByteString.copyFromUtf8(NAME))
+            .setTotalSupply(TOTAL_SUPPLY)
+            .setId(String.valueOf(tokenId))
+            .setTrxNum(100)
+            .setNum(10)
+            .setStartTime(nowTime)
+            .setEndTime(nowTime + 24 * 3600 * 1000)
+            .setOrder(0)
+            .setDescription(ByteString.copyFromUtf8("assetTest"))
+            .setUrl(ByteString.copyFromUtf8("tron.test.com"))
+            .build();
   }
 
   private void createAssertBeforSameTokenNameActive() {
@@ -146,29 +137,23 @@ public class UpdateAssetActuatorTest {
 
     // address in accountStore and the owner of contract
     AccountCapsule accountCapsule =
-        new AccountCapsule(
-            ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS)),
-            ByteString.copyFromUtf8(OWNER_ADDRESS_ACCOUNT_NAME),
-            Protocol.AccountType.Normal);
-    AccountAssetIssueCapsule accountAssetIssueCapsule =
-            new AccountAssetIssueCapsule(
-            ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS))
-    );
+            new AccountCapsule(
+                    ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS)),
+                    ByteString.copyFromUtf8(OWNER_ADDRESS_ACCOUNT_NAME),
+                    Protocol.AccountType.Normal);
 
     // add asset issue
     AssetIssueCapsule assetIssueCapsule = new AssetIssueCapsule(getAssetIssueContract());
     dbManager.getAssetIssueStore().put(assetIssueCapsule.createDbKey(), assetIssueCapsule);
     dbManager.getAssetIssueV2Store().put(assetIssueCapsule.createDbV2Key(), assetIssueCapsule);
 
-    accountAssetIssueCapsule.setAssetIssuedName(assetIssueCapsule.createDbKey());
-    accountAssetIssueCapsule.setAssetIssuedID(assetIssueCapsule.getId().getBytes());
+    accountCapsule.setAssetIssuedName(assetIssueCapsule.createDbKey());
+    accountCapsule.setAssetIssuedID(assetIssueCapsule.getId().getBytes());
 
-    accountAssetIssueCapsule.addAsset(assetIssueCapsule.createDbKey(), TOTAL_SUPPLY);
-    accountAssetIssueCapsule.addAssetV2(assetIssueCapsule.createDbV2Key(), TOTAL_SUPPLY);
+    accountCapsule.addAsset(assetIssueCapsule.createDbKey(), TOTAL_SUPPLY);
+    accountCapsule.addAssetV2(assetIssueCapsule.createDbV2Key(), TOTAL_SUPPLY);
 
     dbManager.getAccountStore().put(ByteArray.fromHexString(OWNER_ADDRESS), accountCapsule);
-    dbManager.getAccountAssetIssueStore()
-            .put(ByteArray.fromHexString(OWNER_ADDRESS), accountAssetIssueCapsule);
   }
 
   private void createAssertSameTokenNameActive() {
@@ -176,25 +161,20 @@ public class UpdateAssetActuatorTest {
 
     // address in accountStore and the owner of contract
     AccountCapsule accountCapsule =
-        new AccountCapsule(
-            ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS)),
-            ByteString.copyFromUtf8(OWNER_ADDRESS_ACCOUNT_NAME),
-            Protocol.AccountType.Normal);
+            new AccountCapsule(
+                    ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS)),
+                    ByteString.copyFromUtf8(OWNER_ADDRESS_ACCOUNT_NAME),
+                    Protocol.AccountType.Normal);
 
     // add asset issue
     AssetIssueCapsule assetIssueCapsule = new AssetIssueCapsule(getAssetIssueContract());
     dbManager.getAssetIssueV2Store().put(assetIssueCapsule.createDbV2Key(), assetIssueCapsule);
 
-    AccountAssetIssueCapsule accountAssetIssueCapsule = new
-            AccountAssetIssueCapsule(
-            ByteString.copyFromUtf8(OWNER_ADDRESS_ACCOUNT_NAME),
-            ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS))
-    );
-    accountAssetIssueCapsule.setAssetIssuedName(assetIssueCapsule.createDbKey());
-    accountAssetIssueCapsule.setAssetIssuedID(assetIssueCapsule.getId().getBytes());
-    accountAssetIssueCapsule.addAssetV2(assetIssueCapsule.createDbV2Key(), TOTAL_SUPPLY);
+    accountCapsule.setAssetIssuedName(assetIssueCapsule.createDbKey());
+    accountCapsule.setAssetIssuedID(assetIssueCapsule.getId().getBytes());
+    accountCapsule.addAssetV2(assetIssueCapsule.createDbV2Key(), TOTAL_SUPPLY);
+
     dbManager.getAccountStore().put(ByteArray.fromHexString(OWNER_ADDRESS), accountCapsule);
-    dbManager.getAccountAssetIssueStore().put(ByteArray.fromHexString(OWNER_ADDRESS), accountAssetIssueCapsule);
   }
 
   @Test
@@ -205,26 +185,26 @@ public class UpdateAssetActuatorTest {
     UpdateAssetActuator actuator;
     actuator = new UpdateAssetActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager())
-        .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, URL, 500L, 8000L));
+            .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, URL, 500L, 8000L));
     try {
       actuator.validate();
       actuator.execute(ret);
       Assert.assertEquals(ret.getInstance().getRet(), Protocol.Transaction.Result.code.SUCESS);
       //V1
       AssetIssueCapsule assetIssueCapsule =
-          dbManager.getAssetIssueStore().get(ByteString.copyFromUtf8(NAME).toByteArray());
+              dbManager.getAssetIssueStore().get(ByteString.copyFromUtf8(NAME).toByteArray());
       Assert.assertNotNull(assetIssueCapsule);
       Assert.assertEquals(
-          DESCRIPTION, assetIssueCapsule.getInstance().getDescription().toStringUtf8());
+              DESCRIPTION, assetIssueCapsule.getInstance().getDescription().toStringUtf8());
       Assert.assertEquals(URL, assetIssueCapsule.getInstance().getUrl().toStringUtf8());
       Assert.assertEquals(assetIssueCapsule.getFreeAssetNetLimit(), 500L);
       Assert.assertEquals(assetIssueCapsule.getPublicFreeAssetNetLimit(), 8000L);
       //V2
       AssetIssueCapsule assetIssueCapsuleV2 =
-          dbManager.getAssetIssueV2Store().get(ByteArray.fromString(String.valueOf(tokenId)));
+              dbManager.getAssetIssueV2Store().get(ByteArray.fromString(String.valueOf(tokenId)));
       Assert.assertNotNull(assetIssueCapsuleV2);
       Assert.assertEquals(
-          DESCRIPTION, assetIssueCapsuleV2.getInstance().getDescription().toStringUtf8());
+              DESCRIPTION, assetIssueCapsuleV2.getInstance().getDescription().toStringUtf8());
       Assert.assertEquals(URL, assetIssueCapsuleV2.getInstance().getUrl().toStringUtf8());
       Assert.assertEquals(assetIssueCapsuleV2.getFreeAssetNetLimit(), 500L);
       Assert.assertEquals(assetIssueCapsuleV2.getPublicFreeAssetNetLimit(), 8000L);
@@ -251,7 +231,7 @@ public class UpdateAssetActuatorTest {
     UpdateAssetActuator actuator;
     actuator = new UpdateAssetActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager())
-        .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, URL, 500L, 8000L));
+            .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, URL, 500L, 8000L));
 
     try {
       actuator.validate();
@@ -259,19 +239,19 @@ public class UpdateAssetActuatorTest {
       Assert.assertEquals(ret.getInstance().getRet(), Protocol.Transaction.Result.code.SUCESS);
       //V1 old version exist but  not updata
       AssetIssueCapsule assetIssueCapsule =
-          dbManager.getAssetIssueStore().get(ByteString.copyFromUtf8(NAME).toByteArray());
+              dbManager.getAssetIssueStore().get(ByteString.copyFromUtf8(NAME).toByteArray());
       Assert.assertNotNull(assetIssueCapsule);
       Assert.assertNotEquals(
-          DESCRIPTION, assetIssueCapsule.getInstance().getDescription().toStringUtf8());
+              DESCRIPTION, assetIssueCapsule.getInstance().getDescription().toStringUtf8());
       Assert.assertNotEquals(URL, assetIssueCapsule.getInstance().getUrl().toStringUtf8());
       Assert.assertNotEquals(assetIssueCapsule.getFreeAssetNetLimit(), 500L);
       Assert.assertNotEquals(assetIssueCapsule.getPublicFreeAssetNetLimit(), 8000L);
       //V2
       AssetIssueCapsule assetIssueCapsuleV2 =
-          dbManager.getAssetIssueV2Store().get(ByteArray.fromString(String.valueOf(tokenId)));
+              dbManager.getAssetIssueV2Store().get(ByteArray.fromString(String.valueOf(tokenId)));
       Assert.assertNotNull(assetIssueCapsuleV2);
       Assert.assertEquals(
-          DESCRIPTION, assetIssueCapsuleV2.getInstance().getDescription().toStringUtf8());
+              DESCRIPTION, assetIssueCapsuleV2.getInstance().getDescription().toStringUtf8());
       Assert.assertEquals(URL, assetIssueCapsuleV2.getInstance().getUrl().toStringUtf8());
       Assert.assertEquals(assetIssueCapsuleV2.getFreeAssetNetLimit(), 500L);
       Assert.assertEquals(assetIssueCapsuleV2.getPublicFreeAssetNetLimit(), 8000L);
@@ -294,22 +274,22 @@ public class UpdateAssetActuatorTest {
     UpdateAssetActuator actuator;
     actuator = new UpdateAssetActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager())
-        .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, URL,
-            500L, 8000L));
+            .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, URL,
+                    500L, 8000L));
     try {
       actuator.validate();
       actuator.execute(ret);
       Assert.assertEquals(ret.getInstance().getRet(), Protocol.Transaction.Result.code.SUCESS);
       //V1，Data is no longer update
       AssetIssueCapsule assetIssueCapsule =
-          dbManager.getAssetIssueStore().get(ByteString.copyFromUtf8(NAME).toByteArray());
+              dbManager.getAssetIssueStore().get(ByteString.copyFromUtf8(NAME).toByteArray());
       Assert.assertNull(assetIssueCapsule);
       //V2
       AssetIssueCapsule assetIssueCapsuleV2 =
-          dbManager.getAssetIssueV2Store().get(ByteArray.fromString(String.valueOf(tokenId)));
+              dbManager.getAssetIssueV2Store().get(ByteArray.fromString(String.valueOf(tokenId)));
       Assert.assertNotNull(assetIssueCapsuleV2);
       Assert.assertEquals(
-          DESCRIPTION, assetIssueCapsuleV2.getInstance().getDescription().toStringUtf8());
+              DESCRIPTION, assetIssueCapsuleV2.getInstance().getDescription().toStringUtf8());
       Assert.assertEquals(URL, assetIssueCapsuleV2.getInstance().getUrl().toStringUtf8());
       Assert.assertEquals(assetIssueCapsuleV2.getFreeAssetNetLimit(), 500L);
       Assert.assertEquals(assetIssueCapsuleV2.getPublicFreeAssetNetLimit(), 8000L);
@@ -330,8 +310,8 @@ public class UpdateAssetActuatorTest {
     long tokenId = dbManager.getDynamicPropertiesStore().getTokenIdNum();
     UpdateAssetActuator actuator = new UpdateAssetActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager())
-        .setAny(getContract(OWNER_ADDRESS_INVALID, DESCRIPTION, URL,
-            500L, 8000L));
+            .setAny(getContract(OWNER_ADDRESS_INVALID, DESCRIPTION, URL,
+                    500L, 8000L));
 
     TransactionResultCapsule ret = new TransactionResultCapsule();
     try {
@@ -356,8 +336,8 @@ public class UpdateAssetActuatorTest {
     long tokenId = dbManager.getDynamicPropertiesStore().getTokenIdNum();
     UpdateAssetActuator actuator = new UpdateAssetActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager())
-        .setAny(getContract(OWNER_ADDRESS_NOTEXIST, DESCRIPTION, URL,
-            500L, 8000L));
+            .setAny(getContract(OWNER_ADDRESS_NOTEXIST, DESCRIPTION, URL,
+                    500L, 8000L));
 
     TransactionResultCapsule ret = new TransactionResultCapsule();
     try {
@@ -382,8 +362,8 @@ public class UpdateAssetActuatorTest {
     long tokenId = dbManager.getDynamicPropertiesStore().getTokenIdNum();
     UpdateAssetActuator actuator = new UpdateAssetActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager())
-        .setAny(getContract(SECOND_ACCOUNT_ADDRESS, DESCRIPTION, URL,
-            500L, 8000L));
+            .setAny(getContract(SECOND_ACCOUNT_ADDRESS, DESCRIPTION, URL,
+                    500L, 8000L));
 
     TransactionResultCapsule ret = new TransactionResultCapsule();
     try {
@@ -412,8 +392,8 @@ public class UpdateAssetActuatorTest {
     String localUrl = "";
     UpdateAssetActuator actuator = new UpdateAssetActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager())
-        .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, localUrl,
-            500L, 8000L));
+            .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, localUrl,
+                    500L, 8000L));
 
     TransactionResultCapsule ret = new TransactionResultCapsule();
     try {
@@ -440,15 +420,15 @@ public class UpdateAssetActuatorTest {
     createAssertBeforSameTokenNameActive();
     long tokenId = dbManager.getDynamicPropertiesStore().getTokenIdNum();
     String localDescription =
-        "abchefghijklmnopqrstuvwxyzabchefghijklmnopqrstuvwxyzabchefghijklmnopqrstuv"
-            + "wxyzabchefghijklmnopqrstuvwxyzabchefghijklmnopqrstuvwxyzabchefghijkl"
-            + "mnopqrstuvwxyzabchefghijklmnopqrstuvwxyzabchefghijklmnopqrstuvwxyzab"
-            + "chefghijklmnopqrstuvwxyz";
+            "abchefghijklmnopqrstuvwxyzabchefghijklmnopqrstuvwxyzabchefghijklmnopqrstuv"
+                    + "wxyzabchefghijklmnopqrstuvwxyzabchefghijklmnopqrstuvwxyzabchefghijkl"
+                    + "mnopqrstuvwxyzabchefghijklmnopqrstuvwxyzabchefghijklmnopqrstuvwxyzab"
+                    + "chefghijklmnopqrstuvwxyz";
 
     UpdateAssetActuator actuator = new UpdateAssetActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager())
-        .setAny(getContract(OWNER_ADDRESS, localDescription, URL,
-            500L, 8000L));
+            .setAny(getContract(OWNER_ADDRESS, localDescription, URL,
+                    500L, 8000L));
 
     TransactionResultCapsule ret = new TransactionResultCapsule();
     try {
@@ -477,7 +457,7 @@ public class UpdateAssetActuatorTest {
     long localNewLimit = 57_600_000_001L;
     UpdateAssetActuator actuator = new UpdateAssetActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager())
-        .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, URL, localNewLimit, 8000L));
+            .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, URL, localNewLimit, 8000L));
 
     TransactionResultCapsule ret = new TransactionResultCapsule();
     try {
@@ -503,7 +483,7 @@ public class UpdateAssetActuatorTest {
     long localNewPublicLimit = -1L;
     UpdateAssetActuator actuator = new UpdateAssetActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager())
-        .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, URL, 500L, localNewPublicLimit));
+            .setAny(getContract(OWNER_ADDRESS, DESCRIPTION, URL, 500L, localNewPublicLimit));
 
     TransactionResultCapsule ret = new TransactionResultCapsule();
     try {
@@ -530,10 +510,10 @@ public class UpdateAssetActuatorTest {
     actuatorTest.noContract();
 
     Any invalidContractTypes = Any.pack(AssetIssueContractOuterClass.AssetIssueContract.newBuilder()
-        .build());
+            .build());
     actuatorTest.setInvalidContract(invalidContractTypes);
     actuatorTest.setInvalidContractTypeMsg("contract type error",
-        "contract type error, expected type [UpdateAssetContract],real type["
+            "contract type error, expected type [UpdateAssetContract],real type["
     );
     actuatorTest.invalidContractType();
     createAssertBeforSameTokenNameActive();

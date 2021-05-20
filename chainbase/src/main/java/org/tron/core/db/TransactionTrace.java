@@ -52,8 +52,6 @@ public class TransactionTrace {
 
   private AccountStore accountStore;
 
-  private AccountAssetIssueStore accountAssetIssueStore;
-
   private CodeStore codeStore;
 
   private EnergyProcessor energyProcessor;
@@ -66,6 +64,10 @@ public class TransactionTrace {
 
   private ForkController forkController;
 
+  private VotesStore votesStore;
+
+  private DelegationStore delegationStore;
+
   @Getter
   private TransactionContext transactionContext;
   @Getter
@@ -76,10 +78,10 @@ public class TransactionTrace {
   private boolean netFeeForBandwidth = true;
 
   public TransactionTrace(TransactionCapsule trx, StoreFactory storeFactory,
-      Runtime runtime) {
+                          Runtime runtime) {
     this.trx = trx;
     Transaction.Contract.ContractType contractType = this.trx.getInstance().getRawData()
-        .getContract(0).getType();
+            .getContract(0).getType();
     switch (contractType.getNumber()) {
       case ContractType.TriggerSmartContract_VALUE:
         trxType = TRX_CONTRACT_CALL_TYPE;
@@ -95,13 +97,15 @@ public class TransactionTrace {
     this.contractStore = storeFactory.getChainBaseManager().getContractStore();
     this.codeStore = storeFactory.getChainBaseManager().getCodeStore();
     this.accountStore = storeFactory.getChainBaseManager().getAccountStore();
-    this.accountAssetIssueStore = storeFactory.getChainBaseManager().getAccountAssetIssueStore();
 
     this.receipt = new ReceiptCapsule(Sha256Hash.ZERO_HASH);
     this.energyProcessor = new EnergyProcessor(dynamicPropertiesStore, accountStore);
     this.runtime = runtime;
     this.forkController = new ForkController();
     forkController.init(storeFactory.getChainBaseManager());
+
+    this.votesStore = storeFactory.getChainBaseManager().getVotesStore();
+    this.delegationStore = storeFactory.getChainBaseManager().getDelegationStore();
   }
 
   public TransactionCapsule getTrx() {
@@ -110,7 +114,7 @@ public class TransactionTrace {
 
   private boolean needVM() {
     return this.trxType == TRX_CONTRACT_CALL_TYPE
-        || this.trxType == TRX_CONTRACT_CREATION_TYPE;
+            || this.trxType == TRX_CONTRACT_CREATION_TYPE;
   }
 
   public void init(BlockCapsule blockCap) {
@@ -121,7 +125,7 @@ public class TransactionTrace {
   public void init(BlockCapsule blockCap, boolean eventPluginLoaded) {
     txStartTimeInMs = System.currentTimeMillis();
     transactionContext = new TransactionContext(blockCap, trx, storeFactory, false,
-        eventPluginLoaded);
+            eventPluginLoaded);
   }
 
   public void checkIsConstant() throws ContractValidateException, VMIllegalException {
@@ -129,16 +133,16 @@ public class TransactionTrace {
       return;
     }
     TriggerSmartContract triggerContractFromTransaction = ContractCapsule
-        .getTriggerContractFromTransaction(this.getTrx().getInstance());
+            .getTriggerContractFromTransaction(this.getTrx().getInstance());
     if (TRX_CONTRACT_CALL_TYPE == this.trxType) {
       ContractCapsule contract = contractStore
-          .get(triggerContractFromTransaction.getContractAddress().toByteArray());
+              .get(triggerContractFromTransaction.getContractAddress().toByteArray());
       if (contract == null) {
         logger.info("contract: {} is not in contract store", StringUtil
-            .encode58Check(triggerContractFromTransaction.getContractAddress().toByteArray()));
+                .encode58Check(triggerContractFromTransaction.getContractAddress().toByteArray()));
         throw new ContractValidateException("contract: " + StringUtil
-            .encode58Check(triggerContractFromTransaction.getContractAddress().toByteArray())
-            + " is not in contract store");
+                .encode58Check(triggerContractFromTransaction.getContractAddress().toByteArray())
+                + " is not in contract store");
       }
       ABI abi = contract.getInstance().getAbi();
       if (WalletUtil.isConstant(abi, triggerContractFromTransaction)) {
@@ -172,7 +176,7 @@ public class TransactionTrace {
   }
 
   public void exec()
-      throws ContractExeException, ContractValidateException, VMIllegalException {
+          throws ContractExeException, ContractValidateException, VMIllegalException {
     /*  VM execute  */
     runtime.execute(transactionContext);
     setBill(transactionContext.getProgramResult().getEnergyUsed());
@@ -207,12 +211,17 @@ public class TransactionTrace {
       for (DataWord contract : transactionContext.getProgramResult().getDeleteAccounts()) {
         deleteContract(convertToTronAddress((contract.getLast20Bytes())));
       }
+      for (DataWord address : transactionContext.getProgramResult().getDeleteVotes()) {
+        votesStore.delete(convertToTronAddress((address.getLast20Bytes())));
+      }
+      for (DataWord address : transactionContext.getProgramResult().getDeleteDelegation()) {
+        deleteDelegationByAddress(convertToTronAddress((address.getLast20Bytes())));
+      }
     }
   }
 
   /**
    * pay actually bill(include ENERGY and storage).
-   * 实际支付
    */
   public void pay() throws BalanceInsufficientException {
     byte[] originAccount;
@@ -226,14 +235,14 @@ public class TransactionTrace {
         break;
       case TRX_CONTRACT_CALL_TYPE:
         TriggerSmartContract callContract = ContractCapsule
-            .getTriggerContractFromTransaction(trx.getInstance());
+                .getTriggerContractFromTransaction(trx.getInstance());
         ContractCapsule contractCapsule =
-            contractStore.get(callContract.getContractAddress().toByteArray());
+                contractStore.get(callContract.getContractAddress().toByteArray());
 
         callerAccount = callContract.getOwnerAddress().toByteArray();
         originAccount = contractCapsule.getOriginAddress();
         percent = Math
-            .max(Constant.ONE_HUNDRED - contractCapsule.getConsumeUserResourcePercent(), 0);
+                .max(Constant.ONE_HUNDRED - contractCapsule.getConsumeUserResourcePercent(), 0);
         percent = Math.min(percent, Constant.ONE_HUNDRED);
         originEnergyLimit = contractCapsule.getOriginEnergyLimit();
         break;
@@ -245,12 +254,12 @@ public class TransactionTrace {
     AccountCapsule origin = accountStore.get(originAccount);
     AccountCapsule caller = accountStore.get(callerAccount);
     receipt.payEnergyBill(
-        dynamicPropertiesStore, accountStore, forkController,
-        origin,
-        caller,
-        percent, originEnergyLimit,
-        energyProcessor,
-        EnergyProcessor.getHeadSlot(dynamicPropertiesStore));
+            dynamicPropertiesStore, accountStore, forkController,
+            origin,
+            caller,
+            percent, originEnergyLimit,
+            energyProcessor,
+            EnergyProcessor.getHeadSlot(dynamicPropertiesStore));
   }
 
   public boolean checkNeedRetry() {
@@ -258,10 +267,9 @@ public class TransactionTrace {
       return false;
     }
     return trx.getContractRet() != contractResult.OUT_OF_TIME && receipt.getResult()
-        == contractResult.OUT_OF_TIME;
+            == contractResult.OUT_OF_TIME;
   }
 
-  //这个 check 不过，就不接收块了，在测试接收同步区块的时候，这里异常就会不接收
   public void check() throws ReceiptCheckErrException {
     if (!needVM()) {
       return;
@@ -269,12 +277,11 @@ public class TransactionTrace {
     if (Objects.isNull(trx.getContractRet())) {
       throw new ReceiptCheckErrException("null resultCode");
     }
-    // vm 执行的结果在这里校验
     if (!trx.getContractRet().equals(receipt.getResult())) {
       logger.info(
-          "this tx id: {}, the resultCode in received block: {}, the resultCode in self: {}",
-          Hex.toHexString(trx.getTransactionId().getBytes()), trx.getContractRet(),
-          receipt.getResult());
+              "this tx id: {}, the resultCode in received block: {}, the resultCode in self: {}",
+              Hex.toHexString(trx.getTransactionId().getBytes()), trx.getContractRet(),
+              receipt.getResult());
       throw new ReceiptCheckErrException("Different resultCode");
     }
   }
@@ -306,7 +313,6 @@ public class TransactionTrace {
     codeStore.delete(address);
     accountStore.delete(address);
     contractStore.delete(address);
-    accountAssetIssueStore.delete(address);
   }
 
   public static byte[] convertToTronAddress(byte[] address) {
@@ -319,6 +325,13 @@ public class TransactionTrace {
     }
     return address;
   }
+
+  public void deleteDelegationByAddress(byte[] address){
+    delegationStore.delete(address); //begin Cycle
+    delegationStore.delete(("lastWithdraw-" + Hex.toHexString(address)).getBytes()); //last Withdraw cycle
+    delegationStore.delete(("end-" + Hex.toHexString(address)).getBytes()); //end cycle
+  }
+
 
   public enum TimeResultType {
     NORMAL,

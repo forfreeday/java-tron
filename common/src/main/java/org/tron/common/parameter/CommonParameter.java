@@ -313,6 +313,10 @@ public class CommonParameter {
   @Setter
   public long allowNewResourceModel;
 
+  @Getter
+  @Setter
+  public long allowReceiptsMerkleRoot;
+
   // @Getter
   // @Setter
   // public long allowShieldedTransaction; //committee parameter

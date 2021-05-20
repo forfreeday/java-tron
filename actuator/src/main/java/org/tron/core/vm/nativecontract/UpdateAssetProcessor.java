@@ -4,7 +4,6 @@ import com.google.protobuf.ByteString;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.utils.DecodeUtil;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.AssetIssueCapsule;
 import org.tron.core.exception.ContractValidateException;
@@ -19,10 +18,10 @@ public class UpdateAssetProcessor {
 
   public void execute(Object contract, Repository repository) {
     UpdateAssetParam updateAssetParam = (UpdateAssetParam) contract;
-    AccountAssetIssueCapsule accountAssetIssue = repository.getAccountAssetIssue(updateAssetParam.getOwnerAddress());
+    AccountCapsule accountCapsule = repository.getAccount(updateAssetParam.getOwnerAddress());
 
     AssetIssueCapsule assetIssueCapsuleV2;
-    assetIssueCapsuleV2 = repository.getAssetIssue(accountAssetIssue.getAssetIssuedID().toByteArray());
+    assetIssueCapsuleV2 = repository.getAssetIssue(accountCapsule.getAssetIssuedID().toByteArray());
     assetIssueCapsuleV2.setUrl(ByteString.copyFrom(updateAssetParam.getNewUrl()));
     assetIssueCapsuleV2.setDescription(ByteString.copyFrom(updateAssetParam.getNewDesc()));
 
@@ -45,18 +44,14 @@ public class UpdateAssetProcessor {
     if (!DecodeUtil.addressValid(updateAssetParam.getOwnerAddress())) {
       throw new ContractValidateException("Invalid ownerAddress");
     }
-
-    byte[] ownerAddress = updateAssetParam.getOwnerAddress();
-    AccountCapsule account = repository.getAccount(ownerAddress);
+    AccountCapsule account = repository.getAccount(updateAssetParam.getOwnerAddress());
     if (account == null) {
       throw new ContractValidateException("Account does not exist");
     }
-
-    AccountAssetIssueCapsule accountAssetIssue = repository.getAccountAssetIssue(ownerAddress);
-    if (accountAssetIssue.getAssetIssuedID().isEmpty()) {
+    if (account.getAssetIssuedID().isEmpty()) {
       throw new ContractValidateException("Account has not issued any asset");
     }
-    if (repository.getAssetIssue(accountAssetIssue.getAssetIssuedID().toByteArray())
+    if (repository.getAssetIssue(account.getAssetIssuedID().toByteArray())
         == null) {
       throw new ContractValidateException("Asset is not existed in AssetIssueV2Store");
     }
