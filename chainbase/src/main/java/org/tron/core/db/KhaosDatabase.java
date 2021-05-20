@@ -108,12 +108,14 @@ public class KhaosDatabase extends TronDatabase {
     if (head != null && block.getParentHash() != Sha256Hash.ZERO_HASH) {
       KhaosBlock kblock = miniStore.getByHash(block.getParentHash());
       if (kblock != null) {
+        //找到了父块，如果高度不等于 +1 也是不对的父块
         if (blk.getNum() != kblock.num + 1) {
           throw new BadNumberBlockException(
               "parent number :" + kblock.num + ",block number :" + blk.getNum());
         }
         block.setParent(kblock);
       } else {
+        //找不到父块的，存在未上链的存储中
         miniUnlinkedStore.insert(block);
         logger.error("blk:{}, head:{}, miniStore:{}, miniUnlinkedStore:{}",
             blk,
@@ -125,7 +127,7 @@ public class KhaosDatabase extends TronDatabase {
     }
 
     miniStore.insert(block);
-
+    // TODO 什么情况 block num 会比 head 大
     if (head == null || block.num > head.num) {
       head = block;
     }
@@ -159,6 +161,8 @@ public class KhaosDatabase extends TronDatabase {
 
   /**
    * Find two block's most recent common parent block.
+   * block1 新块hash
+   * block2 上有一块hash
    */
   public Pair<LinkedList<KhaosBlock>, LinkedList<KhaosBlock>> getBranch(Sha256Hash block1,
       Sha256Hash block2)
@@ -170,6 +174,7 @@ public class KhaosDatabase extends TronDatabase {
     KhaosBlock kblk2 = miniStore.getByHash(block2);
     checkNull(kblk2);
 
+    //组成一个 block1 的链条
     while (kblk1.num > kblk2.num) {
       list1.add(kblk1);
       kblk1 = kblk1.getParent();
@@ -177,6 +182,7 @@ public class KhaosDatabase extends TronDatabase {
       checkNull(miniStore.getByHash(kblk1.id));
     }
 
+    //组成一个 block2 的链条
     while (kblk2.num > kblk1.num) {
       list2.add(kblk2);
       kblk2 = kblk2.getParent();
@@ -195,6 +201,8 @@ public class KhaosDatabase extends TronDatabase {
       checkNull(miniStore.getByHash(kblk2.id));
     }
 
+    //list1 哈希不同
+    //list2 老链条
     return new Pair<>(list1, list2);
   }
   
