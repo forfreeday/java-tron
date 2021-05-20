@@ -74,7 +74,6 @@ import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.actuator.ActuatorCreator;
 import org.tron.core.capsule.AccountCapsule;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.core.capsule.BlockBalanceTraceCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.BlockCapsule.BlockId;
@@ -142,7 +141,6 @@ import org.tron.core.store.TransactionRetStore;
 import org.tron.core.store.VotesStore;
 import org.tron.core.store.WitnessScheduleStore;
 import org.tron.core.store.WitnessStore;
-import org.tron.core.store.AccountAssetIssueStore;
 import org.tron.core.utils.TransactionRegister;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
@@ -374,7 +372,7 @@ public class Manager {
     this.triggerCapsuleQueue = new LinkedBlockingQueue<>();
     chainBaseManager.setMerkleContainer(getMerkleContainer());
     chainBaseManager.setMortgageService(mortgageService);
-
+    chainBaseManager.init();
     this.initGenesis();
     try {
       this.khaosDb.start(chainBaseManager.getBlockById(
@@ -396,8 +394,6 @@ public class Manager {
       System.exit(1);
     }
     getChainBaseManager().getForkController().init(this.chainBaseManager);
-    //int account asset issue import
-    chainBaseManager.getAccountAssetIssueStore().convertAccountAssert();
 
     if (Args.getInstance().isNeedToUpdateAsset() && needToUpdateAsset()) {
       new AssetUpdateHelper(chainBaseManager).doWork();
@@ -418,7 +414,6 @@ public class Manager {
       Thread triggerCapsuleProcessThread = new Thread(triggerCapsuleProcessLoop);
       triggerCapsuleProcessThread.start();
     }
-
 
     //initStoreFactory
     prepareStoreFactory();
@@ -482,13 +477,9 @@ public class Manager {
                       ByteString.copyFrom(account.getAddress()),
                       account.getAccountType(),
                       account.getBalance());
-
-              final AccountAssetIssueCapsule accountAssetIssueCapsule =
-                      new AccountAssetIssueCapsule(ByteString.copyFrom(account.getAddress()));
               chainBaseManager.getAccountStore().put(account.getAddress(), accountCapsule);
               chainBaseManager.getAccountIdIndexStore().put(accountCapsule);
               chainBaseManager.getAccountIndexStore().put(accountCapsule);
-              chainBaseManager.getAccountAssetIssueStore().put(account.getAddress(), accountAssetIssueCapsule);
             });
   }
 
@@ -613,8 +604,8 @@ public class Manager {
     return chainBaseManager.getAccountStore();
   }
 
-  public AccountAssetIssueStore getAccountAssetIssueStore() {
-    return chainBaseManager.getAccountAssetIssueStore();
+  public AccountAssetStore getAccountAssetStore() {
+    return chainBaseManager.getAccountAssetStore();
   }
 
   public AccountIndexStore getAccountIndexStore() {
@@ -1224,6 +1215,7 @@ public class Manager {
               trace.getRuntimeResult().getResultCode().name());
       chainBaseManager.getBalanceTraceStore().resetCurrentTransactionTrace();
     }
+    trxCap.setTrxTrace(null);
     //set the sort order
     trxCap.setOrder(transactionInfo.getFee());
     return transactionInfo.getInstance();

@@ -99,7 +99,6 @@ public class BandwidthProcessor extends ResourceProcessor {
         throw new ContractValidateException("account does not exist");
       }
       long now = chainBaseManager.getHeadSlot();
-
       if (contractCreateNewAccount(contract)) {
         consumeForCreateNewAccount(accountCapsule, bytesSize, now, trace);
         continue;

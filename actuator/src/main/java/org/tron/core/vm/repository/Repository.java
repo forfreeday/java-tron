@@ -151,4 +151,5 @@ public interface Repository {
   long getTotalNetWeight();
 
   long getTotalEnergyWeight();
+
 }

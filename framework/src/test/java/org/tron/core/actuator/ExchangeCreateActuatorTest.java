@@ -18,7 +18,11 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.FileUtil;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
-import org.tron.core.capsule.*;
+import org.tron.core.capsule.AccountAssetCapsule;
+import org.tron.core.capsule.AccountCapsule;
+import org.tron.core.capsule.AssetIssueCapsule;
+import org.tron.core.capsule.ExchangeCapsule;
+import org.tron.core.capsule.TransactionResultCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.db.Manager;
@@ -87,6 +91,19 @@ public class ExchangeCreateActuatorTest {
    */
   @Before
   public void initTest() {
+
+    AccountAssetCapsule ownerAddressFirstAsset =
+            new AccountAssetCapsule(ByteString.copyFrom(
+                    ByteArray.fromHexString(OWNER_ADDRESS_FIRST)));
+    AccountAssetCapsule ownerAddressSecondAsset =
+            new AccountAssetCapsule(ByteString.copyFrom(
+                    ByteArray.fromHexString(OWNER_ADDRESS_SECOND)));
+    dbManager.getAccountAssetStore().put(ownerAddressFirstAsset.getAddress().toByteArray(),
+            ownerAddressFirstAsset);
+    dbManager.getAccountAssetStore().put(ownerAddressSecondAsset.getAddress().toByteArray(),
+            ownerAddressSecondAsset);
+
+
     AccountCapsule ownerAccountFirstCapsule =
         new AccountCapsule(
             ByteString.copyFromUtf8(ACCOUNT_NAME_FIRST),
@@ -105,23 +122,11 @@ public class ExchangeCreateActuatorTest {
     dbManager.getAccountStore()
         .put(ownerAccountSecondCapsule.getAddress().toByteArray(), ownerAccountSecondCapsule);
 
-    AccountAssetIssueCapsule ownerAccountAssetIssueFirstCapsule = new AccountAssetIssueCapsule(
-            ByteString.copyFromUtf8(ACCOUNT_NAME_FIRST),
-            ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS_FIRST))
-    );
-    AccountAssetIssueCapsule ownerAccountAssetIssueSecondCapsule = new AccountAssetIssueCapsule(
-            ByteString.copyFromUtf8(ACCOUNT_NAME_SECOND),
-            ByteString.copyFrom(ByteArray.fromHexString(OWNER_ADDRESS_SECOND))
-    );
-    dbManager.getAccountAssetIssueStore().put(ownerAccountAssetIssueFirstCapsule.createDbKey(),
-            ownerAccountAssetIssueFirstCapsule);
-    dbManager.getAccountAssetIssueStore().put(ownerAccountAssetIssueSecondCapsule.createDbKey(),
-            ownerAccountAssetIssueSecondCapsule);
-
     dbManager.getDynamicPropertiesStore().saveLatestBlockHeaderTimestamp(1000000);
     dbManager.getDynamicPropertiesStore().saveLatestBlockHeaderNumber(10);
     dbManager.getDynamicPropertiesStore().saveNextMaintenanceTime(2000000);
     dbManager.getDynamicPropertiesStore().saveLatestExchangeNum(0);
+
   }
 
   private Any getContract(String address, String firstTokenId, long firstTokenBalance,
@@ -169,13 +174,10 @@ public class ExchangeCreateActuatorTest {
 
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
+    accountCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance);
+    accountCapsule.addAssetAmount(secondTokenId.getBytes(), secondTokenBalance);
     accountCapsule.setBalance(10000_000000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance);
-    accountAssetIssueCapsule.addAssetAmount(secondTokenId.getBytes(), secondTokenBalance);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -204,8 +206,7 @@ public class ExchangeCreateActuatorTest {
       Assert.assertEquals(secondTokenBalance, exchangeCapsule.getSecondTokenBalance());
 
       accountCapsule = dbManager.getAccountStore().get(ownerAddress);
-      accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-      Map<String, Long> assetMap = accountAssetIssueCapsule.getAssetMap();
+      Map<String, Long> assetMap = accountCapsule.getAssetMap();
       Assert.assertEquals(10000_000000L - 1024_000000L, accountCapsule.getBalance());
       Assert.assertEquals(0L, assetMap.get(firstTokenId).longValue());
       Assert.assertEquals(0L, assetMap.get(secondTokenId).longValue());
@@ -228,8 +229,7 @@ public class ExchangeCreateActuatorTest {
       Assert.assertEquals(secondTokenBalance, exchangeCapsuleV2.getSecondTokenBalance());
 
       accountCapsule = dbManager.getAccountStore().get(ownerAddress);
-      accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-      Map<String, Long> getAssetV2Map = accountAssetIssueCapsule.getAssetMapV2();
+      Map<String, Long> getAssetV2Map = accountCapsule.getAssetMapV2();
       Assert.assertEquals(10000_000000L - 1024_000000L, accountCapsule.getBalance());
       Assert.assertEquals(0L, getAssetV2Map.get(firstTokenId).longValue());
       Assert.assertEquals(0L, getAssetV2Map.get(secondTokenId).longValue());
@@ -265,11 +265,8 @@ public class ExchangeCreateActuatorTest {
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
     accountCapsule.setBalance(200_000_000_000000L);
+    accountCapsule.addAssetAmount(secondTokenId.getBytes(), 200_000_000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmount(secondTokenId.getBytes(), 200_000_000L);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -295,8 +292,7 @@ public class ExchangeCreateActuatorTest {
       Assert.assertEquals(secondTokenBalance, exchangeCapsule.getSecondTokenBalance());
 
       accountCapsule = dbManager.getAccountStore().get(ownerAddress);
-      accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-      Map<String, Long> assetMap = accountAssetIssueCapsule.getAssetMap();
+      Map<String, Long> assetMap = accountCapsule.getAssetMap();
       Assert.assertEquals(200_000_000_000000L - 1024_000000L - firstTokenBalance,
           accountCapsule.getBalance());
       Assert.assertEquals(100_000_000L, assetMap.get(secondTokenId).longValue());
@@ -317,8 +313,7 @@ public class ExchangeCreateActuatorTest {
       Assert.assertEquals(secondTokenBalance, exchangeCapsuleV2.getSecondTokenBalance());
 
       accountCapsule = dbManager.getAccountStore().get(ownerAddress);
-      accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-      Map<String, Long> getAssetV2Map = accountAssetIssueCapsule.getAssetMapV2();
+      Map<String, Long> getAssetV2Map = accountCapsule.getAssetMapV2();
       Assert.assertEquals(200_000_000_000000L - 1024_000000L - firstTokenBalance,
           accountCapsule.getBalance());
       Assert.assertEquals(100_000_000L, getAssetV2Map.get(secondTokenId).longValue());
@@ -353,12 +348,9 @@ public class ExchangeCreateActuatorTest {
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
     accountCapsule.setBalance(200_000_000_000000L);
+    accountCapsule.addAsset(secondTokenId.getBytes(), 200_000_000L);
+    accountCapsule.addAssetV2(String.valueOf(1L).getBytes(), 200_000_000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAsset(secondTokenId.getBytes(), 200_000_000L);
-    accountAssetIssueCapsule.addAssetV2(String.valueOf(1L).getBytes(), 200_000_000L);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -391,11 +383,11 @@ public class ExchangeCreateActuatorTest {
       Assert.assertEquals(secondTokenBalance, exchangeCapsuleV2.getSecondTokenBalance());
 
       accountCapsule = dbManager.getAccountStore().get(ownerAddress);
-      accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-      Map<String, Long> getAssetV2Map = accountAssetIssueCapsule.getAssetMapV2();
+      Map<String, Long> getAssetV2Map = accountCapsule.getAssetMapV2();
       Assert.assertEquals(200_000_000_000000L - 1024_000000L - firstTokenBalance,
           accountCapsule.getBalance());
       Assert.assertEquals(100_000_000L, getAssetV2Map.get(secondTokenId).longValue());
+
     } catch (ContractValidateException e) {
       Assert.assertFalse(e instanceof ContractValidateException);
     } catch (ContractExeException e) {
@@ -437,15 +429,12 @@ public class ExchangeCreateActuatorTest {
 
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
+    accountCapsule.addAssetAmountV2(firstTokenId.getBytes(), firstTokenBalance,
+        dbManager.getDynamicPropertiesStore(), dbManager.getAssetIssueStore());
+    accountCapsule.addAssetAmountV2(secondTokenId.getBytes(), secondTokenBalance,
+        dbManager.getDynamicPropertiesStore(), dbManager.getAssetIssueStore());
     accountCapsule.setBalance(10000_000000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmountV2(firstTokenId.getBytes(), firstTokenBalance,
-            dbManager.getDynamicPropertiesStore(), dbManager.getAssetIssueStore());
-    accountAssetIssueCapsule.addAssetAmountV2(secondTokenId.getBytes(), secondTokenBalance,
-            dbManager.getDynamicPropertiesStore(), dbManager.getAssetIssueStore());
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -478,9 +467,7 @@ public class ExchangeCreateActuatorTest {
       Assert.assertEquals(secondTokenBalance, exchangeCapsuleV2.getSecondTokenBalance());
 
       accountCapsule = dbManager.getAccountStore().get(ownerAddress);
-      accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-
-      Map<String, Long> getAssetV2Map = accountAssetIssueCapsule.getAssetMapV2();
+      Map<String, Long> getAssetV2Map = accountCapsule.getAssetMapV2();
       Assert.assertEquals(10000_000000L - 1024_000000L, accountCapsule.getBalance());
       Assert.assertEquals(0L, getAssetV2Map.get(firstTokenId).longValue());
       Assert.assertEquals(0L, getAssetV2Map.get(secondTokenId).longValue());
@@ -517,11 +504,9 @@ public class ExchangeCreateActuatorTest {
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
     accountCapsule.setBalance(200_000_000_000000L);
+    accountCapsule.addAssetAmountV2(secondTokenId.getBytes(), 200_000_000L,
+        dbManager.getDynamicPropertiesStore(), dbManager.getAssetIssueStore());
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmountV2(secondTokenId.getBytes(), 200_000_000L,
-            dbManager.getDynamicPropertiesStore(), dbManager.getAssetIssueStore());
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -552,8 +537,7 @@ public class ExchangeCreateActuatorTest {
       Assert.assertEquals(secondTokenBalance, exchangeCapsuleV2.getSecondTokenBalance());
 
       accountCapsule = dbManager.getAccountStore().get(ownerAddress);
-      accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-      Map<String, Long> getAssetV2Map = accountAssetIssueCapsule.getAssetMapV2();
+      Map<String, Long> getAssetV2Map = accountCapsule.getAssetMapV2();
       Assert.assertEquals(200_000_000_000000L - 1024_000000L - firstTokenBalance,
           accountCapsule.getBalance());
       Assert.assertEquals(100_000_000L, getAssetV2Map.get(secondTokenId).longValue());
@@ -888,13 +872,10 @@ public class ExchangeCreateActuatorTest {
 
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
+    accountCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance);
+    accountCapsule.addAssetAmount(secondTokenId.getBytes(), secondTokenBalance);
     accountCapsule.setBalance(10000_000000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance);
-    accountAssetIssueCapsule.addAssetAmount(secondTokenId.getBytes(), secondTokenBalance);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -1151,13 +1132,10 @@ public class ExchangeCreateActuatorTest {
 
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
+    accountCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance - 1000L);
+    accountCapsule.addAssetAmount(secondTokenId.getBytes(), 200_000_000L);
     accountCapsule.setBalance(10000_000000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance - 1000L);
-    accountAssetIssueCapsule.addAssetAmount(secondTokenId.getBytes(), 200_000_000L);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -1192,13 +1170,10 @@ public class ExchangeCreateActuatorTest {
 
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
+    accountCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance - 1000L);
+    accountCapsule.addAssetAmount(secondTokenId.getBytes(), 200_000_000L);
     accountCapsule.setBalance(10000_000000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance - 1000L);
-    accountAssetIssueCapsule.addAssetAmount(secondTokenId.getBytes(), 200_000_000L);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -1233,11 +1208,8 @@ public class ExchangeCreateActuatorTest {
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
     accountCapsule.setBalance(secondTokenBalance + 1000L);
+    accountCapsule.addAssetAmount(firstTokenId.getBytes(), 200_000_000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmount(firstTokenId.getBytes(), 200_000_000L);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -1273,11 +1245,8 @@ public class ExchangeCreateActuatorTest {
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
     accountCapsule.setBalance(secondTokenBalance + 1000L);
+    accountCapsule.addAssetAmount(firstTokenId.getBytes(), 200_000_000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmount(firstTokenId.getBytes(), 200_000_000L);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -1311,14 +1280,10 @@ public class ExchangeCreateActuatorTest {
 
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
+    accountCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance);
+    accountCapsule.addAssetAmount(secondTokenId.getBytes(), 90_000_000L);
     accountCapsule.setBalance(10000_000000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance);
-    accountAssetIssueCapsule.addAssetAmount(secondTokenId.getBytes(), 90_000_000L);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -1390,12 +1355,9 @@ public class ExchangeCreateActuatorTest {
 
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
+    accountCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance);
     accountCapsule.setBalance(10000_000000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -1430,12 +1392,9 @@ public class ExchangeCreateActuatorTest {
 
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
+    accountCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance);
     accountCapsule.setBalance(10000_000000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore().get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmount(firstTokenId.getBytes(), firstTokenBalance);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
 
     ExchangeCreateActuator actuator = new ExchangeCreateActuator();
     actuator.setChainBaseManager(dbManager.getChainBaseManager()).setAny(getContract(
@@ -1479,12 +1438,8 @@ public class ExchangeCreateActuatorTest {
     byte[] ownerAddress = ByteArray.fromHexString(OWNER_ADDRESS_FIRST);
     AccountCapsule accountCapsule = dbManager.getAccountStore().get(ownerAddress);
     accountCapsule.setBalance(200_000_000_000000L);
+    accountCapsule.addAssetAmount(secondTokenId.getBytes(), 200_000_000L);
     dbManager.getAccountStore().put(ownerAddress, accountCapsule);
-
-    AccountAssetIssueCapsule accountAssetIssueCapsule = dbManager.getAccountAssetIssueStore()
-            .get(ownerAddress);
-    accountAssetIssueCapsule.addAssetAmount(secondTokenId.getBytes(), 200_000_000L);
-    dbManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.getAddress().toByteArray(), accountAssetIssueCapsule);
 
     actuatorTest.setContract(getContract(
         OWNER_ADDRESS_FIRST, firstTokenId, firstTokenBalance, secondTokenId, secondTokenBalance));

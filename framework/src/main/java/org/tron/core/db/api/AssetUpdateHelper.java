@@ -12,11 +12,11 @@ import java.util.Map.Entry;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.ChainBaseManager;
+import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.AssetIssueCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.ExchangeCapsule;
 import org.tron.core.capsule.TransactionCapsule;
-import org.tron.core.capsule.AccountAssetIssueCapsule;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 
@@ -37,7 +37,7 @@ public class AssetUpdateHelper {
     init();
     updateAsset();
     updateExchange();
-    updateAccountAssetIssue();
+    updateAccount();
     finish();
     logger.info(
         "Complete the asset update, Total time:{} milliseconds",
@@ -145,50 +145,50 @@ public class AssetUpdateHelper {
     logger.info("Complete the exchange store update, Total exchanges:{}", count);
   }
 
-  public void updateAccountAssetIssue() {
+  public void updateAccount() {
     long count = 0;
 
-    Iterator<Entry<byte[], AccountAssetIssueCapsule>> iterator =
-        chainBaseManager.getAccountAssetIssueStore().iterator();
+    Iterator<Entry<byte[], AccountCapsule>> iterator =
+        chainBaseManager.getAccountStore().iterator();
+
     while (iterator.hasNext()) {
-      AccountAssetIssueCapsule accountAssetIssueCapsule = iterator.next().getValue();
-
-      accountAssetIssueCapsule.clearAssetV2();
-      if (accountAssetIssueCapsule.getAssetMap().size() != 0) {
+      AccountCapsule accountCapsule = iterator.next().getValue();
+      accountCapsule.clearAssetV2();
+      if (accountCapsule.getAssetMap().size() != 0) {
         HashMap<String, Long> map = new HashMap<>();
-        for (Map.Entry<String, Long> entry : accountAssetIssueCapsule.getAssetMap().entrySet()) {
+        for (Map.Entry<String, Long> entry : accountCapsule.getAssetMap().entrySet()) {
           map.put(ByteArray.toStr(assetNameToIdMap.get(entry.getKey())), entry.getValue());
         }
 
-        accountAssetIssueCapsule.addAssetMapV2(map);
+        accountCapsule.addAssetMapV2(map);
       }
 
-      accountAssetIssueCapsule.clearFreeAssetNetUsageV2();
-      if (accountAssetIssueCapsule.getAllFreeAssetNetUsage().size() != 0) {
+      accountCapsule.clearFreeAssetNetUsageV2();
+      if (accountCapsule.getAllFreeAssetNetUsage().size() != 0) {
         HashMap<String, Long> map = new HashMap<>();
-        for (Map.Entry<String, Long> entry : accountAssetIssueCapsule.getAllFreeAssetNetUsage().entrySet()) {
+        for (Map.Entry<String, Long> entry : accountCapsule.getAllFreeAssetNetUsage().entrySet()) {
           map.put(ByteArray.toStr(assetNameToIdMap.get(entry.getKey())), entry.getValue());
         }
-        accountAssetIssueCapsule.addAllFreeAssetNetUsageV2(map);
+        accountCapsule.addAllFreeAssetNetUsageV2(map);
       }
 
-      accountAssetIssueCapsule.clearLatestAssetOperationTimeV2();
-      if (accountAssetIssueCapsule.getLatestAssetOperationTimeMap().size() != 0) {
+      accountCapsule.clearLatestAssetOperationTimeV2();
+      if (accountCapsule.getLatestAssetOperationTimeMap().size() != 0) {
         HashMap<String, Long> map = new HashMap<>();
         for (Map.Entry<String, Long> entry :
-                accountAssetIssueCapsule.getLatestAssetOperationTimeMap().entrySet()) {
+            accountCapsule.getLatestAssetOperationTimeMap().entrySet()) {
           map.put(ByteArray.toStr(assetNameToIdMap.get(entry.getKey())), entry.getValue());
         }
-        accountAssetIssueCapsule.addAllLatestAssetOperationTimeV2(map);
+        accountCapsule.addAllLatestAssetOperationTimeV2(map);
       }
 
-      if (!accountAssetIssueCapsule.getAssetIssuedName().isEmpty()) {
-        accountAssetIssueCapsule.setAssetIssuedID(
-                assetNameToIdMap.get(
-                        ByteArray.toStr(accountAssetIssueCapsule.getAssetIssuedName().toByteArray())));
+      if (!accountCapsule.getAssetIssuedName().isEmpty()) {
+        accountCapsule.setAssetIssuedID(
+            assetNameToIdMap.get(
+                ByteArray.toStr(accountCapsule.getAssetIssuedName().toByteArray())));
       }
 
-      chainBaseManager.getAccountAssetIssueStore().put(accountAssetIssueCapsule.createDbKey(), accountAssetIssueCapsule);
+      chainBaseManager.getAccountStore().put(accountCapsule.createDbKey(), accountCapsule);
 
       if (count % 50000 == 0) {
         logger.info("The number of accounts that have completed the update: {}", count);
